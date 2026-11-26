@@ -823,7 +823,7 @@ async function techPreview(){const e=document.getElementById('pvbox');if(!e)retu
 function techItems(r){return r.items.map(it=>({no:it.no,lines:String(it.tdesc!=null?it.tdesc:it.desc).split(/\r?\n/).filter(x=>x.trim()),qty:it.qty}))}
 function tf(k,label,w,ta){return `<label style="width:${w}">${label}<${ta?'textarea':'input'} dir="ltr" ${ta?'':'value="'+esc(T(k))+'"'} oninput="R().tech.${k}=this.value;save()">${ta?esc(T(k)):''}</${ta?'textarea':'input'}></label>`}
 function compSel(onchange,val){return `<label style="width:230px">الشركة (الهيدر والختم والموقّع)<select onchange="${onchange}">${PIDS().map(p=>`<option value="${p}" ${val===p?'selected':''}>${PDEF[p].label}</option>`).join('')}</select></label>`}
-function tTech(){const r=R();const pid=rpid(r);return `<div class="card"><h2>إصدار العرض الفني</h2><div class="row">${compSel("R().company=this.value;if(R().tech)R().tech={prices:null,validity:null,payment:null,delivery:null,signer:null};save();render()",pid)}${langBox()}
+function tTech(){const r=R();const pid=rpid(r);return `<div class="card"><h2>إصدار العرض الفني</h2><div class="row">${compSel("R().company=this.value;if(R().tech)R().tech={};save();render()",pid)}${langBox()}
 <button class="b g" onclick="issueTech()">تنزيل Word</button><button class="b" onclick="issueTechPdf()">PDF تقريبي (من المتصفح)</button><button class="b o" onclick="techPreview()">تحديث المعاينة</button></div>
 <p class="muted">بيطلع ملف docx بنفس قالب الشركة المختارة (الهيدر والفوتر والختم والتوقيع). <b>للـPDF الرسمي:</b> نزّل الـWord وافتحه في Microsoft Word واعمل Save as PDF (ده الأدق 100%). زرار "PDF تقريبي" بيطبع معاينة من المتصفح (نافذة الطباعة > Save as PDF) والترتيب فيه بيختلف عن الـWord (اتجاه العربي/الإنجليزي، الهيدر، ترتيب الأعمدة): استخدمه للمراجعة السريعة بس، ومتبعتوش للعميل من غير ما تراجعه. تعديل القالب نفسه (الختم، الهيدر، الموقّع) من تبويب "قوالب الشركات".</p>
 <div class="note">بيانات الغلاف (العميل والتاريخ والرقم والموضوع) من تبويب طلبات التسعير. الشروط تحت افتراضية من قالب الشركة وتقدر تعدلها للطلب ده أو للكل من "قوالب الشركات".</div>
@@ -838,7 +838,7 @@ function tTpl(){const pid=TPLSEL;const o=pov(pid);const F=PDEF[pid].fields;const
 <p class="muted">كل شركة ليها قالب العرض الفني وقالب التفويض بنفس شكل ملفاتك. هنا تغيّر الأسماء والصور والنصوص اللي في الهيدر والفوتر من غير مبرمج. الصور الجديدة لازم تبقى بنفس النسبة تقريباً (الحجم والمكان ثابتين في القالب). التعديل بيتطبق على العروض والتفويضات اللي هتصدرها بعد كده.</p>
 <div class="row">${Object.keys(lab).map(k=>`<label style="width:280px">${lab[k]}<input ${/Ar$/.test(k)?'dir="rtl"':'dir="ltr"'} value="${esc(pfield(pid,k))}" oninput="pov('${pid}').fields['${k}']=this.value;save()"></label>`).join('')}</div>
 <h3 style="margin:12px 0 4px;font-size:14px">الشروط الافتراضية للعرض الفني</h3><div class="row">${PDEF[pid].terms.map(t=>`<label style="width:260px">${t[1]}<input dir="ltr" value="${esc(pterm(pid,t[0]))}" oninput="pov('${pid}').terms['${t[0]}']=this.value;save()"></label>`).join('')}</div>
-<label style="flex-direction:row;align-items:center;gap:6px;margin-top:8px"><input type="checkbox" ${S.companyDef===pid?'checked':''} onchange="S.companyDef='${pid}';save();render()"> الشركة الافتراضية للطلبات الجديدة</label></div>
+<label style="flex-direction:row;align-items:center;gap:6px;margin-top:8px"><input type="checkbox" ${S.companyDef===pid?'checked':''} onchange="if(this.checked)S.companyDef='${pid}';else if(S.companyDef==='${pid}')S.companyDef='';save();render()"> الشركة الافتراضية للطلبات الجديدة</label></div>
 <div class="card"><h2>صور وهيدر وفوتر قالب العرض الفني</h2><div id="tpled_tech" class="muted">بيحمّل...</div></div>
 <div class="card"><h2>صور وهيدر وفوتر قالب التفويض</h2><div id="tpled_auth" class="muted">بيحمّل...</div></div>`}
 async function tplLoad(){if(S.tab!=='tpl')return;for(const kind of ['tech','auth']){const el=document.getElementById('tpled_'+kind);if(!el)continue;try{const z=await loadDocZip(TPLSEL,kind);const o=pov(TPLSEL);let h='<div class="row" style="align-items:flex-start">';
@@ -1475,7 +1475,7 @@ function arPost(r,xml){return rLang(r)==='ar'?arDoc(xml,!!r.arDigits):xml}
 function langBox(){const r=R();return `<label style="width:150px">لغة العرض<select onchange="R().lang=this.value;save();render()"><option value="en" ${rLang(r)==='en'?'selected':''}>English</option><option value="ar" ${rLang(r)==='ar'?'selected':''}>عربي</option></select></label>${rLang(r)==='ar'?`<label style="flex-direction:row;align-items:center;gap:6px;width:auto"><input type="checkbox" style="width:auto" ${r.arDigits?'checked':''} onchange="R().arDigits=this.checked;save();render()"> أرقام عربية (٠١٢)</label><div class="note" style="width:100%;font-size:12px">النسخة العربية بتتولد من قالب الشركة الإنجليزي: العناوين الثابتة والشروط الافتراضية المعروفة بتتترجم، والتوقيع والاسم بيتاخدوا من حقول الشركة العربية (قوالب الشركات). أي شرط بتكتبه بإيدك بعربي بيطلع زي ما هو. الهيدر والفوتر والختم صور القالب زي ما هي. راجع الملف في Word قبل الإرسال.</div>`:''}`}
 
 /* ---- in-app update notice (hosted only): compares BUILD_ID with version.json on the site ---- */
-const BUILD_ID='202611260321';
+const BUILD_ID='202611261142';
 let UPD={shown:false,v:null};
 async function updCheck(){if(UPD.shown||BUILD_ID.indexOf('@@')===0||!synHosted())return;
  try{const r=await fetch('version.json?_='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();if(!j||!j.v||String(j.v)===BUILD_ID)return;UPD.shown=true;UPD.v=j.v;updShow(j)}catch(e){}}
@@ -1502,6 +1502,132 @@ function coCard(){if(myRole()!=='admin')return '';const base=PIDS().filter(p=>!P
  ${cu.length?`<table style="margin-top:8px"><tr><th>الشركة</th><th>منسوخة من</th><th></th></tr>${cu.map(p=>{const c=(S.cos||[]).find(x=>x.id===p)||{};return `<tr><td>${esc(PDEF[p].label)}</td><td>${esc((PDEF[c.base]||{}).label||'')}</td><td><button class="b s r" onclick="coDel('${p}')">حذف</button></td></tr>`}).join('')}</table>`:''}</div>`}
 const _tTpl0=tTpl;tTpl=function(){cosEnsure();return _tTpl0()+coCard()};
 const _listsEnsure0=listsEnsure;listsEnsure=function(){cosEnsure();return _listsEnsure0()};
+
+/* ================= v5k: suggested recipient emails for the current RFQ =================
+ Sources: past quote history (S.rfqs quotes + S.sups), local suppliers (S.lsup),
+ and the big supplier email DB (supplier finder iframe, mounted lazily).
+ All matching is local token matching; nothing leaves the device. Selection is
+ stored on the RFQ (r.sugSel) so it survives render/reload. */
+const SUGSTOP=new Set(['the','and','for','with','من','في','على','الى','إلى','عن','pcs','pcs.','set','sets','piece','pieces','qty','unit','each','new','used','required','requirement','supply','or','eq','equivalent']);
+function sugToks(s){return (String(s||'').toLowerCase().match(/[a-z0-9\u0600-\u06ff][a-z0-9\u0600-\u06ff\-\/\.]{1,}/g)||[]).filter(t=>!/^\d+$/.test(t)||t.length>=3)}
+function sugSets(r){const codes=new Set(),words=new Set();const add=s=>{sugToks(s).forEach(t=>{if(/\d/.test(t)&&t.length>=3)codes.add(t.replace(/[.\-\/]+$/,''));else if(t.length>=4&&!SUGSTOP.has(t))words.add(t)})};(r.items||[]).forEach(it=>{add(it.desc);add(it.unit)});add(r.subject);return {codes,words}}
+function sugScore(txt,C,W){let sc=0;const hit=[];sugToks(txt).forEach(t=>{if(/\d/.test(t)&&t.length>=3){const c=t.replace(/[.\-\/]+$/,'');if(C.has(c)){sc+=5;if(hit.length<4)hit.push(c)}}else if(t.length>=4&&W.has(t)){sc+=1;if(hit.length<4)hit.push(t)}});return {sc,hit}}
+const SUGMAIL=e=>/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(e||'').trim());
+const SUGBAD=st=>/bounce|invalid|undeliver|unsub|opt.?out|blocked|blacklist|spam|فشل|ممنوع|لا ترسل/i.test(String(st||''));
+let SUGC={key:null,data:null},SUGSF={tried:false,rows:0};
+function sugKey(r){return r.id+'|'+(r.items||[]).map(i=>i.desc+':'+i.qty).join('~')+'|'+(r.subject||'')+'|'+(S.rfqs.length)+'|'+(S.rfqs.reduce((n,x)=>n+x.quotes.length,0))+'|'+((S.sups||[]).length)+'|'+((S.lsup||[]).length)+'|'+SUGSF.rows+'|'+((r.sugExtra||[]).length)}
+/* the supplier-finder iframe keeps its rows in a top-level `let R`, which is not a window property; read it through eval in that realm. */
+supRows=function(){try{const w=document.querySelector('#sfhost iframe').contentWindow;if(!w)return[];if(Array.isArray(w.R))return w.R;try{const r=w.eval('R');return Array.isArray(r)?r:[]}catch(e2){return[]}}catch(e){return[]}}
+function supKeyOf(n){return String(n||'').toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]/g,'')}
+function sugCompute(r){
+ const {codes,words}=sugSets(r);const seen={};const g={prev:[],prevOther:[],local:[],db:[]};
+ // past quote history
+ const hist={}; // nameKey -> {name,email,country,sc,hits,inqs:Set}
+ (S.rfqs||[]).forEach(rf=>{(rf.quotes||[]).forEach(q=>{if(!q.supplier)return;const k=supKeyOf(q.supplier);const h=hist[k]=hist[k]||{name:q.supplier,email:'',country:q.country||'',sc:0,hits:[],inqs:new Set()};
+  if(!h.email&&q.email&&SUGMAIL(q.email))h.email=q.email.trim();if(!h.country&&q.country)h.country=q.country;
+  const sp=(S.sups||[]).find(x=>supKeyOf(x.name)===k);if(!h.email&&sp&&SUGMAIL(sp.email))h.email=sp.email.trim();
+  if(rf.id===r.id)return;let txt=(rf.subject||'')+' ';(rf.items||[]).forEach(it=>{if(q.p&&q.p[it.id])txt+=it.desc+' '+(q.p[it.id].offered||'')+' '});
+  const {sc,hit}=sugScore(txt,codes,words);if(sc>0){h.sc+=sc;h.inqs.add(rf.no||'بدون رقم');hit.forEach(x=>{if(h.hits.length<4&&!h.hits.includes(x))h.hits.push(x)})}})});
+ Object.keys(hist).forEach(k=>{const h=hist[k];if(!h.email||seen[h.email.toLowerCase()])return;
+  const row={email:h.email,name:h.name,country:h.country,sc:h.sc,why:h.sc>0?('سعّر في '+[...h.inqs].slice(0,2).join('، ')+(h.hits.length?' - مطابق: '+h.hits.join(', '):'')):'مورد سابق من العروض'};
+  seen[h.email.toLowerCase()]=1;(h.sc>0?g.prev:g.prevOther).push(row)});
+ g.prev.sort((a,b)=>b.sc-a.sc);g.prevOther.sort((a,b)=>a.name.localeCompare(b.name));
+ // local suppliers
+ (S.lsup||[]).forEach(s=>{const e=String(s.email||'').trim();if(!SUGMAIL(e)||seen[e.toLowerCase()])return;
+  const {sc,hit}=sugScore((s.name||'')+' '+(s.cat||'')+' '+(s.notes||'')+' '+(s.city||''),codes,words);if(sc<=0)return;
+  seen[e.toLowerCase()]=1;g.local.push({email:e,name:s.name||e,country:s.city||'',sc,why:'محلي'+(s.cat?' ('+s.cat+')':'')+(hit.length?' - مطابق: '+hit.join(', '):'')})});
+ g.local.sort((a,b)=>b.sc-a.sc);
+ // big supplier DB (iframe)
+ let rows=[];try{rows=supRows()||[]}catch(e){rows=[]}
+ SUGSF.rows=rows.length;
+ if(rows.length){const cand=[];rows.forEach(w=>{const e=String(w.email||'').trim();if(!SUGMAIL(e)||seen[e.toLowerCase()]||SUGBAD(w.status))return;
+   const {sc,hit}=sugScore((w.brand||'')+' '+(w.product||'')+' '+(w.type||'')+' '+(w.company||''),codes,words);if(sc<=0)return;
+   cand.push({email:e,name:w.company||w.brand||e,country:w.country||'',sc,why:'من القاعدة'+(w.brand?' ('+w.brand+')':'')+(hit.length?' - مطابق: '+hit.join(', '):'')})});
+  cand.sort((a,b)=>b.sc-a.sc);cand.slice(0,25).forEach(x=>{if(!seen[x.email.toLowerCase()]){seen[x.email.toLowerCase()]=1;g.db.push(x)}})}
+ // manual additions
+ (r.sugExtra||[]).forEach(x=>{const e=String(x.email||'').trim();if(SUGMAIL(e)&&!seen[e.toLowerCase()]){seen[e.toLowerCase()]=1;g.prev.unshift({email:e,name:x.note||'إضافة يدوية',country:'',sc:999,why:'أضفته بنفسك'})}});
+ return g}
+function sugGet(r){const k=sugKey(r);if(SUGC.key!==k){SUGC={key:k,data:sugCompute(r)}}return SUGC.data}
+function sugSelMap(r){r.sugSel=r.sugSel||{};return r.sugSel}
+function sugToggle(em,on){const r=R();if(!r)return;sugSelMap(r)[em.toLowerCase()]=on?1:0;save();sugCount()}
+function sugGroupG(gid,on){const r=R();if(!r)return;const m=sugSelMap(r);(sugGet(r)[gid]||[]).forEach(x=>m[x.email.toLowerCase()]=on?1:0);save();render()}
+function sugClear(){const r=R();if(!r)return;r.sugSel={};save();render()}
+function sugSelected(r){const m=sugSelMap(r);const all=sugGet(r);const pool=[];['prev','prevOther','local','db'].forEach(g=>all[g].forEach(x=>pool.push(x.email)));return pool.filter(e=>m[e.toLowerCase()])}
+function sugCount(){const r=R();const el=document.getElementById('sugcnt');if(el&&r)el.textContent=sugSelected(r).length}
+function sugCopy(){const r=R();if(!r)return;const sel=sugSelected(r);if(!sel.length)return alert('علّم إيميلات الأول.');navigator.clipboard&&navigator.clipboard.writeText(sel.join(', '));toast('اتنسخ '+sel.length+' إيميل (حطهم في خانة BCC)');setTimeout(()=>toast(''),2500)}
+function sugSent(){const r=R();if(!r)return;const n=sugSelected(r).length;if(!n)return alert('علّم إيميلات الأول.');r.sentCount=(+r.sentCount||0)+n;save();render();toast('اتسجل إنك بعت لـ '+n);setTimeout(()=>toast(''),2000)}
+function sugAddMan(){const r=R();if(!r)return;const i=document.getElementById('sugman');const e=(i.value||'').trim();if(!SUGMAIL(e))return alert('اكتب إيميل صحيح.');r.sugExtra=r.sugExtra||[];if(!r.sugExtra.some(x=>x.email.toLowerCase()===e.toLowerCase()))r.sugExtra.push({email:e,note:'إضافة يدوية'});sugSelMap(r)[e.toLowerCase()]=1;i.value='';save();render()}
+function sugMountSF(){if(SUGSF.tried)return;SUGSF.tried=true;try{const h=document.getElementById('sfhost');if(!h||h.firstChild)return;const fr=document.createElement('iframe');fr.onload=()=>{setTimeout(()=>{SUGSF.rows=(supRows()||[]).length;if(S.tab==='rfq')render()},600)};fr.srcdoc=document.getElementById('sf-src').textContent.replace(/<\\\/script/g,'</script');h.appendChild(fr)}catch(e){}}
+function sugGroupHtml(r,gid,title,rows,open){if(!rows.length)return '';const m=sugSelMap(r);const emails=rows.map(x=>x.email);
+ const body=rows.map(x=>`<label style="flex-direction:row;align-items:center;gap:8px;padding:3px 0;border-bottom:1px dashed var(--bd,#334)"><input type="checkbox" style="width:auto" ${m[x.email.toLowerCase()]?'checked':''} onchange="sugToggle('${esc(x.email)}',this.checked)"><span dir="ltr" style="font-weight:600">${esc(x.email)}</span><span class="muted" style="font-size:12px">${esc(x.name)}${x.country?' - '+esc(x.country):''} · ${esc(x.why)}</span></label>`).join('');
+ const inner=`<div class="row" style="margin:6px 0 2px"><b>${title} (${rows.length})</b><button class="b s o" onclick="sugGroupG('${gid}',true)">تحديد الكل</button><button class="b s o" onclick="sugGroupG('${gid}',false)">إلغاء</button></div>${body}`;
+ return open?`<div style="margin-top:8px">${inner}</div>`:`<details style="margin-top:8px"><summary>${title} (${rows.length})</summary>${inner}</details>`}
+function sugCard(){const r=R();if(!r)return '';if(!(r.items||[]).length&&! (r.sugExtra||[]).length)return '';
+ sugMountSF();
+ const g=sugGet(r);const n=sugSelected(r).length;
+ const sfNote=SUGSF.rows? '': '<p class="muted">بيتم تجهيز اقتراحات قاعدة الموردين الكبيرة في الخلفية... لو مظهرتش، افتح تبويب "قاعدة الموردين" مرة وارجع.</p>';
+ return `<div class="card"><h2>إيميلات مقترحة للإرسال (BCC)</h2>
+<p class="muted">اقتراحات تلقائية من 3 مصادر: الموردين اللي بعتوا عروض قبل كده (مع مطابقة بنود الطلب الحالي ببنود عروضهم القديمة)، الموردين المحليين، وقاعدة الإيميلات الكبيرة. المطابقة بالكلمات والأكواد فقط: راجع قبل الإرسال. البرنامج مش بيبعت أي إيميل بنفسه، بس بيجهزلك القايمة.</p>
+${sfNote}
+<div class="row" style="align-items:center;gap:10px"><span>المحدد: <b id="sugcnt">${n}</b></span><button class="b g" onclick="sugCopy()">نسخ المحدد (للصق في BCC)</button><button class="b o" onclick="sugSent()">اتبعت للمحددين</button><button class="b s o" onclick="sugClear()">إلغاء كل التحديد</button></div>
+<div class="row" style="margin-top:4px"><label style="width:280px">إضافة إيميل يدوي<input id="sugman" dir="ltr" placeholder="name@company.com" onkeydown="if(event.key==='Enter'){event.preventDefault();sugAddMan()}"></label><button class="b s" onclick="sugAddMan()">إضافة وتحديد</button></div>
+${sugGroupHtml(r,'prev','موردين سابقين مطابقين لبنود الطلب',g.prev,true)||''}
+${sugGroupHtml(r,'local','موردين محليين مطابقين',g.local,true)||''}
+${sugGroupHtml(r,'db','من قاعدة الموردين الكبيرة (أفضل 25)',g.db,false)||''}
+${sugGroupHtml(r,'prevOther','موردين سابقين بدون مطابقة للبنود',g.prevOther,false)||''}
+${!g.prev.length&&!g.local.length&&!g.db.length&&!g.prevOther.length?'<p class="muted">مفيش اقتراحات لسه: ضيف بنود للطلب، ولما تدخل عروض موردين بإيميلاتهم هتظهر هنا تلقائياً في الطلبات الجاية.</p>':''}
+</div>`}
+const _tRfqK=tRfq;tRfq=function(){return _tRfqK()+sugCard()};
+
+/* ================= v5l: per-company default terms in settings + Word template import ================= */
+/* Settings tab: the old card edited a global S.terms that issuing no longer reads.
+   It now edits the current default company's terms (same store as the templates tab). */
+const _tSet1=tSet;
+tSet=function(){const h=_tSet1();
+ const pid=PDEF[S.companyDef]?S.companyDef:'platform';
+ const card=`<div class="card"><h2>الشروط الافتراضية للعرض الفني - ${esc(PDEF[pid].label)}</h2><p class="muted">دي شروط الشركة الافتراضية الحالية، وبتتطبق على أي طلب جديد بيستخدمها. كل شركة ليها شروطها الخاصة المحفوظة معاها: عدّلها من تبويب "قوالب الشركات" (اختار الشركة فوق الصفحة وعدّل شروطها).</p><div class="row">${PDEF[pid].terms.map(t=>`<label style="width:260px">${t[1]}<input dir="ltr" value="${esc(pterm(pid,t[0]))}" oninput="pov('${pid}').terms['${t[0]}']=this.value;save()"></label>`).join('')}</div></div>`;
+ const i=h.indexOf('</div></div>');
+ return i<0?h+card:h.slice(0,i+'</div></div>'.length)+card+h.slice(i+'</div></div>'.length)};
+
+
+/* ---- import a company Word template (docx): pulls images + header/footer texts into the selected company ---- */
+let TIMP=null; /* {kind, media:[{name,u8}], texts:[{part,i,txt}], emails, phones, slots:[paths], map:{uploadIdx:slotPath}} */
+async function tplImportRead(inp){const f=inp.files[0];if(!f)return;
+ try{const pid=TPLSEL;const kind=(document.getElementById('impkind')||{}).value||'tech';
+  const z=await JSZip.loadAsync(f);
+  const media=[];for(const n of Object.keys(z.files).filter(n=>/^word\/media\/[^/]+\.(png|jpe?g)$/i.test(n)).sort()){media.push({name:n.split('/').pop(),u8:await z.file(n).async('uint8array')})}
+  const texts=[];for(const n of Object.keys(z.files).filter(n=>/^word\/(header|footer)\d*\.xml$/.test(n)).sort()){const xml=await z.file(n).async('string');let i=-1;for(const seg of paraSplit(xml)){if(!/^<w:p[ >]/.test(seg))continue;i++;if(isFieldP(seg))continue;const t=ptxt(seg);if(t.trim())texts.push({part:n,i,txt:t.trim()})}}
+  const allTxt=texts.map(t=>t.txt).join('\n');
+  const emails=exFind(allTxt).slice(0,8);
+  const phones=[...new Set((allTxt.match(/\+?\d[\d \-()\/]{6,}\d/g)||[]).map(s=>s.trim()).filter(s=>s.replace(/\D/g,'').length>=7))].slice(0,8);
+  const tz=await loadDocZip(pid,kind);
+  const slots=Object.keys(tz.files).filter(n=>/^word\/media\/[^/]+\.(png|jpe?g)$/i.test(n)).sort();
+  const map={};
+  media.forEach((m,mi)=>{const same=slots.find(s=>s.split('/').pop()===m.name);if(same)map[mi]=same});
+  if(!Object.keys(map).length&&media.length===slots.length)slots.forEach((s,i)=>map[i]=s);
+  TIMP={kind,media,texts,emails,phones,slots,map};render();
+ }catch(e){if(typeof showErr==='function')showErr(e);else alert(e.message)}}
+function impMapSet(mi,v){if(!TIMP)return;if(v)TIMP.map[mi]=v;else delete TIMP.map[mi]}
+async function tplImportApply(){if(!TIMP)return;const pid=TPLSEL;const o=pov(pid);const kind=TIMP.kind;let imgN=0;
+ for(const mi of Object.keys(TIMP.map)){const slot=TIMP.map[mi];if(!slot)continue;const id=uid();await putFile(id,new Blob([TIMP.media[mi].u8]));const key=kind+':'+slot;if(o.media[key])await delFile(o.media[key]);o.media[key]=id;imgN++}
+ let txtN=0,skip=0;const tz=await loadDocZip(pid,kind);
+ const parts=[...new Set(TIMP.texts.map(t=>t.part))];
+ for(const part of parts){const rows=TIMP.texts.filter(t=>t.part===part);if(!tz.file(part)){skip+=rows.length;continue}
+  const xml=await tz.file(part).async('string');let maxI=-1;for(const seg of paraSplit(xml)){if(/^<w:p[ >]/.test(seg))maxI++}
+  rows.forEach(t=>{if(t.i<=maxI){o.texts[kind+':'+part+':'+t.i]=t.txt;txtN++}else skip++})}
+ save();TIMP=null;render();
+ alert('اتطبق الاستيراد على قالب '+PDEF[pid].label+': '+imgN+' صورة و'+txtN+' سطر نصي.'+(skip?' اتخطى '+skip+' سطر لأن مكانه مش موجود في هيكل القالب (عدد فقرات الهيدر/الفوتر مختلف) — انسخهم يدوي من القايمة اللي كانت ظاهرة.':''))}
+function impCard(){if(typeof myRole==='function'&&myRole()!=='admin')return '';
+ const pid=TPLSEL;let inner='';
+ if(TIMP){const rows=TIMP.media.map((m,mi)=>{const url=URL.createObjectURL(new Blob([m.u8],{type:/png$/i.test(m.name)?'image/png':'image/jpeg'}));
+   return `<div style="width:170px;text-align:center;border:1px solid var(--bd,#d3dae3);border-radius:8px;padding:6px"><div style="height:80px;display:flex;align-items:center;justify-content:center;background:repeating-conic-gradient(#e6e6e6 0 25%,#fff 0 50%) 50%/14px 14px"><img src="${url}" style="max-width:100%;max-height:80px"></div><div class="muted" style="margin:3px 0">${esc(m.name)}</div><select onchange="impMapSet(${mi},this.value)"><option value="">متستوردش</option>${TIMP.slots.map(s=>`<option value="${s}" ${TIMP.map[mi]===s?'selected':''}>${s.split('/').pop()}</option>`).join('')}</select></div>`}).join('');
+  inner=`<h3 style="margin:10px 0 4px;font-size:14px">الصور اللي اتلاقت (${TIMP.media.length}) - اختار صورة القالب اللي هتتبدل بكل واحدة</h3><div class="row" style="align-items:flex-start">${rows||'<span class="muted">مفيش صور في الملف.</span>'}</div>
+  <h3 style="margin:10px 0 4px;font-size:14px">نصوص الهيدر والفوتر اللي هتتستورد (${TIMP.texts.length})</h3><div style="max-height:160px;overflow:auto;border:1px solid var(--bd,#d3dae3);border-radius:8px;padding:6px">${TIMP.texts.map(t=>`<div class="muted" style="font-size:12px">${esc(t.part.replace('word/',''))} (فقرة ${t.i+1}): <b>${esc(t.txt)}</b></div>`).join('')||'<span class="muted">مفيش نصوص هيدر/فوتر (غالباً كلها صور).</span>'}</div>
+  ${TIMP.emails.length||TIMP.phones.length?`<p class="muted" style="margin-top:6px">بيانات تواصل مكتشفة (انسخها لحقول الشركة لو صح): ${[...TIMP.emails,...TIMP.phones].map(x=>`<span dir="ltr">${esc(x)}</span>`).join(' · ')}</p>`:''}
+  <div class="row" style="margin-top:8px"><button class="b g" onclick="tplImportApply()">تطبيق الاستيراد على ${esc(PDEF[pid].label)}</button><button class="b o" onclick="TIMP=null;render()">إلغاء</button></div>`}
+ return `<div class="card"><h2>استيراد قالب من ملف Word (docx)</h2><p class="muted">ارفع ملف Word فيه شكل الشركة (الهيدر والختم والتوقيع وبيانات التواصل)، والبرنامج بيطلع منه الصور ونصوص الهيدر والفوتر ويحطها في قالب الشركة المختارة فوق. <b>اللي بيتستورد:</b> الصور ونصوص الهيدر/الفوتر بس، على هيكل القالب الحالي. <b>اللي مش بيتستورد:</b> ترتيب الصفحة والجدول نفسه (الهيكل بيفضل من قالب الأساس)، وبيانات الموقّع والاسم تكتبها في الحقول فوق. الصور الجديدة لازم تبقى بنفس النسبة تقريباً.</p>
+ <div class="row"><label>نوع القالب<select id="impkind"><option value="tech">العرض الفني</option><option value="auth">التفويض</option></select></label><label class="b" style="cursor:pointer;flex-direction:row;justify-content:center">اختار ملف Word<input type="file" accept=".docx" style="display:none" onchange="tplImportRead(this)"></label></div>${inner}</div>`}
+const _tTpl2=tTpl;tTpl=function(){return _tTpl2()+impCard()};
 
 /* ---------- supplier finder ---------- */
 function mountSF(){const h=document.getElementById('sfhost');if(h.firstChild)return;const fr=document.createElement('iframe');fr.srcdoc=document.getElementById('sf-src').textContent.replace(/<\\\/script/g,'</script');h.appendChild(fr)}
