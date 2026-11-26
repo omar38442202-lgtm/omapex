@@ -802,7 +802,7 @@ async function applyOv(z,pid,kind){const o=(S.prof[pid]||{});
  const texts=o.texts||{};const byPart={};for(const key of Object.keys(texts)){const m=key.match(/^(\w+):(.+):(\d+)$/);if(m&&m[1]===kind){(byPart[m[2]]=byPart[m[2]]||{})[+m[3]]=texts[key]}}
  for(const part of Object.keys(byPart)){if(!z.file(part))continue;let xml=await z.file(part).async('string');let i=-1;xml=paraSplit(xml).map(seg=>{if(/^<w:p[ >]/.test(seg)){i++;if(byPart[part][i]!=null)return setParaXml(seg,byPart[part][i])}return seg}).join('');z.file(part,xml)}}
 async function buildTech(r){const pid=rpid(r);const tpl=PRDOCS[pid].tech.tpl;const z=await loadDocZip(pid,'tech');
- const m={SUBJECT:r.subject,CLIENT:r.client,CLIENT2:r.clientShort?'“'+r.clientShort+'”':'',DATE:r.date,INQ:r.no,FROMNAME:(rLang(r)==='ar'&&pfield(pid,'companyAr'))||pfield(pid,'fromName')||pfield(pid,'nameEn'),SIGNER:(rLang(r)==='ar'&&pfield(pid,'signAr'))||pfield(pid,'signerEn'),TITLE:(rLang(r)==='ar'&&pfield(pid,'titleAr'))||pfield(pid,'titleEn')};
+ const m={SUBJECT:r.subject,CLIENT:r.client,CLIENT2:r.clientShort?'“'+r.clientShort+'”':'',DATE:r.date||todayStr(),INQ:r.no,FROMNAME:(rLang(r)==='ar'&&pfield(pid,'companyAr'))||pfield(pid,'fromName')||pfield(pid,'nameEn'),SIGNER:(rLang(r)==='ar'&&pfield(pid,'signAr'))||pfield(pid,'signerEn'),TITLE:(rLang(r)==='ar'&&pfield(pid,'titleAr'))||pfield(pid,'titleEn')};
  PDEF[pid].terms.forEach(t=>{m[t[3]]=T(t[0])});
  const rows=techItems(r).map(i=>tpl.rowTpl.replace('@@NO@@',()=>xe(i.no)).replace('@@QTY@@',()=>xe(i.qty)).replace('@@DESC@@',()=>(i.lines.length?i.lines:['']).map(l=>tpl.linePara.replace('@@LINE@@',()=>xe(l))).join(''))).join('');
  const xml=tpl.head+fillTok(tpl.pre,m)+tpl.tblHead+rows+tpl.tblTail+fillTok(tpl.post,m);z.file('word/document.xml',arPost(r,xml));await applyOv(z,pid,'tech');
@@ -879,7 +879,7 @@ function vatStatementAr(r){const pc=vatPc(r),mode=vatMode(r);
  return 'الأسعار المقدمة غير شاملة ضريبة القيمة المضافة '+pc+' % .'}
 function finTotals(r){const {res}=analyse(r);const x=res.find(y=>y.q.id===r.finSup);let tot=0,miss=0;const rows=r.items.map(it=>{const up=finPrice(r,it,x);if(isNaN(up))miss++;else tot+=up*it.qty;return {up,tt:isNaN(up)?NaN:up*it.qty}});const F={rows,tot,miss,x};F.vatMode=vatMode(r);F.vatPc=vatPc(r);F.vatAmt=F.vatMode==='add'?F.tot*F.vatPc/100:0;F.grand=F.tot+F.vatAmt;return F}
 async function buildFin(r){const pid=rpid(r);const tpl=addFinCols(PRDOCS[pid].tech.tpl);const z=await loadDocZip(pid,'tech');const F=finTotals(r);
- const m={SUBJECT:r.subject,CLIENT:r.client,CLIENT2:r.clientShort?'“'+r.clientShort+'”':'',DATE:r.date,INQ:r.no,FROMNAME:(rLang(r)==='ar'&&pfield(pid,'companyAr'))||pfield(pid,'fromName')||pfield(pid,'nameEn'),SIGNER:(rLang(r)==='ar'&&pfield(pid,'signAr'))||pfield(pid,'signerEn'),TITLE:(rLang(r)==='ar'&&pfield(pid,'titleAr'))||pfield(pid,'titleEn')};
+ const m={SUBJECT:r.subject,CLIENT:r.client,CLIENT2:r.clientShort?'“'+r.clientShort+'”':'',DATE:r.date||todayStr(),INQ:r.no,FROMNAME:(rLang(r)==='ar'&&pfield(pid,'companyAr'))||pfield(pid,'fromName')||pfield(pid,'nameEn'),SIGNER:(rLang(r)==='ar'&&pfield(pid,'signAr'))||pfield(pid,'signerEn'),TITLE:(rLang(r)==='ar'&&pfield(pid,'titleAr'))||pfield(pid,'titleEn')};
  PDEF[pid].terms.forEach(t=>{m[t[3]]=T(t[0])});const cur=r.finCur||S.baseCur;
  const rows=techItems(r).map((i,k)=>tpl.rowTpl.replace('@@NO@@',()=>xe(i.no)).replace('@@QTY@@',()=>xe(i.qty)).replace('@@UP@@',()=>xe(f2(F.rows[k].up))).replace('@@TT@@',()=>xe(f2(F.rows[k].tt))).replace('@@DESC@@',()=>(i.lines.length?i.lines:['']).map(l=>tpl.linePara.replace('@@LINE@@',()=>xe(l))).join(''))).join('');
  const totL=['Total: '+f2(F.tot)+' '+cur];
@@ -1490,7 +1490,7 @@ function arPost(r,xml){return rLang(r)==='ar'?arDoc(xml,!!r.arDigits):xml}
 function langBox(){const r=R();return `<label style="width:150px">لغة العرض<select onchange="R().lang=this.value;save();render()"><option value="en" ${rLang(r)==='en'?'selected':''}>English</option><option value="ar" ${rLang(r)==='ar'?'selected':''}>عربي</option></select></label>${rLang(r)==='ar'?`<label style="flex-direction:row;align-items:center;gap:6px;width:auto"><input type="checkbox" style="width:auto" ${r.arDigits?'checked':''} onchange="R().arDigits=this.checked;save();render()"> أرقام عربية (٠١٢)</label><div class="note" style="width:100%;font-size:12px">النسخة العربية بتتولد من قالب الشركة الإنجليزي: العناوين الثابتة والشروط الافتراضية المعروفة بتتترجم، والتوقيع والاسم بيتاخدوا من حقول الشركة العربية (قوالب الشركات). أي شرط بتكتبه بإيدك بعربي بيطلع زي ما هو. الهيدر والفوتر والختم صور القالب زي ما هي. راجع الملف في Word قبل الإرسال.</div>`:''}`}
 
 /* ---- in-app update notice (hosted only): compares BUILD_ID with version.json on the site ---- */
-const BUILD_ID='202611261242';
+const BUILD_ID='202611261307';
 let UPD={shown:false,v:null};
 async function updCheck(){if(UPD.shown||BUILD_ID.indexOf('@@')===0||!synHosted())return;
  try{const r=await fetch('version.json?_='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();if(!j||!j.v||String(j.v)===BUILD_ID)return;UPD.shown=true;UPD.v=j.v;updShow(j)}catch(e){}}
@@ -1678,6 +1678,18 @@ function combColMap(h){const t=ptxt(h).replace(/\s+/g,' ').trim();
  if(/كمية|qty|quantity/i.test(t))return '@@QTY@@';
  if(/ملاحظ|notes?|remark/i.test(t))return '@@NOTES@@';
  return ''}
+function setParaKeepDraw(p,text){const ds=p.match(/<w:drawing>[\s\S]*?<\/w:drawing>/g)||[];const out=setParaXml(p,text);
+ return ds.length?out.replace('</w:p>',ds.map(d=>'<w:r>'+d+'</w:r>').join('')+'</w:p>'):out}
+function replaceDateInPara(s){const runs=[...s.matchAll(/<w:r[ >][\s\S]*?<\/w:r>/g)];let acc='';const map=[];
+ runs.forEach(rm=>{map.push([acc.length,ptxt(rm[0]).length,rm[0]]);acc+=ptxt(rm[0])});
+ const dm=acc.match(/\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}|\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}/);if(!dm)return null;
+ const start=dm.index,end=start+dm[0].length;let out=s,placed=0;
+ for(const [off,len,run] of map){const rs=Math.max(start,off),re=Math.min(end,off+len);if(rs>=re)continue;
+  const inner=run.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/);if(!inner)continue;const loc=inner[1];
+  const nt=loc.slice(0,rs-off)+(placed?'':'@@DATE@@')+loc.slice(re-off);placed=1;
+  out=out.replace(run,run.replace(inner[0],inner[0].slice(0,inner[0].indexOf('>')+1)+xe(nt)+'</w:t>'))}
+ return placed?{xml:out,sep:(dm[0].match(/[\/\-.]/)||['/'])[0]}:null}
+function combDate(r,defs){if(r.date)return r.date;const sep=(defs&&defs.__dateSep)||'/';const d=new Date();return String(d.getDate()).padStart(2,'0')+sep+String(d.getMonth()+1).padStart(2,'0')+sep+d.getFullYear()}
 function combTok(doc){
  const bi=doc.indexOf('<w:body>');if(bi<0)throw new Error('ملف Word غير مفهوم.');
  const head=doc.slice(0,bi+8),body=doc.slice(bi+8);
@@ -1701,10 +1713,10 @@ function combTok(doc){
  const proc=(part)=>{const segs=paraSplit(part);const out=[];let mode=null;
   for(const s of segs){if(!/^<w:p[ >]/.test(s)){out.push(s);continue}
    const t=ptxt(s).replace(/\s+/g,' ').trim();
-   if(/الشروط|الاحكام|الأحكام/.test(t)&&!/شاملة|ضريبة/.test(t)){mode='terms';out.push(s);continue}
-   if(mode==='terms'){if(/التوقيع|التاريخ|وتفضلوا|تحياتنا/.test(t)||!t){mode=null}
-    else{const k='T'+(Object.keys(defs).filter(x=>/^T\d+$/.test(x)).length+1);defs[k]=t;out.push(setParaXml(s,'@@'+k+'@@'));continue}}
-   if(/شركة/.test(t)&&t.length>30&&/خدمات|مشتريات|توريد|تجارية/.test(t)){defs.INTRO=t;found.intro=t.slice(0,40);out.push(setParaXml(s,'@@INTRO@@'));continue}
+   if(/الشروط|الاحكام|الأحكام|terms\s*(and|&)?\s*conditions/i.test(t)&&!/شاملة|ضريبة|VAT/i.test(t)){mode='terms';out.push(s);continue}
+   if(mode==='terms'){if(/التوقيع|التاريخ|وتفضلوا|تحياتنا|signature|yours (sincerely|faithfully)|regards|^name\s*:/i.test(t)||!t){mode=null}
+    else{const k='T'+(Object.keys(defs).filter(x=>/^T\d+$/.test(x)).length+1);defs[k]=t;out.push(setParaKeepDraw(s,'@@'+k+'@@'));continue}}
+   if((/شركة/.test(t)&&t.length>30&&/خدمات|مشتريات|توريد|تجارية/.test(t))||(/company|corporation|est\.|co\./i.test(t)&&t.length>60)){defs.INTRO=t;found.intro=t.slice(0,40);out.push(setParaKeepDraw(s,'@@INTRO@@'));continue}
    out.push(s)}
   return out.join('')};
  let pre2=proc(pre),post2=proc(post);
@@ -1712,12 +1724,12 @@ function combTok(doc){
  {const segs=paraSplit(pre2);const out=[];let phase=0;
   for(const s of segs){if(!/^<w:p[ >]/.test(s)){out.push(s);continue}
    const t=ptxt(s).replace(/\s+/g,' ').trim();
-   if(phase===0&&/الساده|السادة|السيد|الأستاذ|الاستاذ/.test(t)){
-    const rest=t.replace(/^.*?(?:الساده|السادة|السيد|الأستاذ|الاستاذ)\s*[\/\:\-]?\s*/,'');
-    if(rest&&rest.length>1){found.client=rest;out.push(setParaXml(s,'الساده / @@CLIENT@@'));phase=2;continue}
+   if(phase===0&&/الساده|السادة|السيد|الأستاذ|الاستاذ|^to\s*:|^dear\b|^attn/i.test(t)){
+    const rest=t.replace(/^.*?(?:الساده|السادة|السيد|الأستاذ|الاستاذ|^to\s*:|^dear\b|^attn)\s*[\/\:\-]?\s*/i,'');
+    if(rest&&rest.length>1){found.client=rest;out.push(setParaKeepDraw(s,'الساده / @@CLIENT@@'));phase=2;continue}
     phase=1;out.push(s);continue}
-   if(phase===1&&t){found.client=t;out.push(setParaXml(s,'@@CLIENT@@'));phase=2;continue}
-   if(phase===2&&t&&t.length<40&&!/م\s|الصنف/.test(t)){out.push(setParaXml(s,''));continue}
+   if(phase===1&&t){found.client=t;out.push(setParaKeepDraw(s,'@@CLIENT@@'));phase=2;continue}
+   if(phase===2&&t&&t.length<40&&!/م\s|الصنف/.test(t)){out.push(setParaKeepDraw(s,''));continue}
    if(phase===2){phase=0}
    out.push(s)}
   pre2=out.join('')}
@@ -1725,8 +1737,8 @@ function combTok(doc){
  {const segs=paraSplit(pre2);const out=[];let phase=0;
   for(const s of segs){if(!/^<w:p[ >]/.test(s)){out.push(s);continue}
    const t=ptxt(s).replace(/\s+/g,' ').trim();
-   if(phase===0&&(/^n\.?o\.?/i.test(t)||/^رقم/.test(t))&&t.length<30){const mm=t.match(/^(n\.?o\.?|رقم)\s*[:：]?\s*(\S.*)$/i);if(mm&&mm[2]){found.inq=mm[2];out.push(setParaXml(s,mm[1]+':@@INQ@@'));continue}phase=1;out.push(s);continue}
-   if(phase===1&&t&&!/@@CLIENT@@/.test(s)){found.inq=t;out.push(setParaXml(s,'@@INQ@@'));phase=0;continue}
+   if(phase===0&&(/^n\.?o\.?/i.test(t)||/^رقم/.test(t)||/^(ref|rfq|inq(?:uiry)?)\s*[:.]?\s*\S/i.test(t))&&t.length<30){const mm=t.match(/^(n\.?o\.?|رقم|ref|rfq|inq(?:uiry)?)\s*[:：.]?\s*(\S.*)$/i);if(mm&&mm[2]){found.inq=mm[2];out.push(setParaKeepDraw(s,mm[1]+':@@INQ@@'));continue}phase=1;out.push(s);continue}
+   if(phase===1&&t&&!/@@CLIENT@@/.test(s)){found.inq=t;out.push(setParaKeepDraw(s,'@@INQ@@'));phase=0;continue}
    out.push(s)}
   pre2=out.join('')}
  // date: paragraph containing تاريخ in post -> following numeric-ish paragraphs: first DATE, rest blank
@@ -1734,11 +1746,17 @@ function combTok(doc){
   for(const s of segs){if(!/^<w:p[ >]/.test(s)){out.push(s);continue}
    const t=ptxt(s).replace(/\s+/g,' ').trim();
    if(phase===0&&/^تاريخ/.test(t)){phase=1;out.push(s);continue}
-   if(phase===1&&t&&/^[\d\s\/\-.م]+$/.test(t)){found.date=(found.date||'')+t;out.push(setParaXml(s,found.date?'@@DATE@@':''));if(found.date)phase=2;continue}
-   if(phase===2&&t&&/^[\d\s\/\-.م]+$/.test(t)){out.push(setParaXml(s,''));continue}
+   if(phase===1&&t&&/^[\d\s\/\-.م]+$/.test(t)){found.date=(found.date||'')+t;out.push(setParaKeepDraw(s,found.date?'@@DATE@@':''));if(found.date)phase=2;continue}
+   if(phase===2&&t&&/^[\d\s\/\-.م]+$/.test(t)){out.push(setParaKeepDraw(s,''));continue}
    if(phase&&t&&!/^[\d\s\/\-.م]+$/.test(t))phase=0;
    out.push(s)}
   post2=out.join('')}
+ // any literal date text in a non-token paragraph (e.g. next to التوقيع) becomes the DATE token
+ {const dp=part=>paraSplit(part).map(s=>{if(!/^<w:p[ >]/.test(s)||s.indexOf('@@')>=0)return s;
+  const rp=replaceDateInPara(s);if(rp){found.date='found';defs.__dateSep=rp.sep;return rp.xml}
+  const t=ptxt(s);const dm=t.match(/\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}|\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}/);
+  if(!dm)return s;found.date=dm[0];return setParaKeepDraw(s,t.replace(dm[0],'@@DATE@@'))}).join('');
+  pre2=dp(pre2);post2=dp(post2)}
  // date: if the file has no date line at all, add تاريخ:@@DATE@@ right after the INQ (or الساده) paragraph
  if(pre2.indexOf('@@DATE@@')<0&&post2.indexOf('@@DATE@@')<0){const segs=paraSplit(pre2);const out=[];let done=0;
   for(const s of segs){out.push(s);if(!done&&/^<w:p[ >]/.test(s)&&/@@INQ@@|الساده|السادة/.test(ptxt(s))){out.push(setParaXml(s,'تاريخ:@@DATE@@'));found.date='auto';done=1}}
@@ -1768,7 +1786,7 @@ async function buildComb(r){const pid=rpid(r);const c=(S.prof[pid]||{}).comb;if(
  const blob=await getFile(c.docxId);if(!blob)throw new Error('ملف القالب مش موجود على الجهاز ده. ارفعه تاني.');
  const z=await JSZip.loadAsync(await blob.arrayBuffer());
  const F=finTotals(r);const cur=r.finCur||S.baseCur;
- const m={CLIENT:r.client,DATE:r.date,INQ:r.no,SUBJECT:r.subject,CNAME:pfield(pid,'companyAr')||pfield(pid,'nameEn'),INTRO:c.defs.INTRO||''};
+ const m={CLIENT:r.client,DATE:combDate(r,c.defs),INQ:r.no,SUBJECT:r.subject,CNAME:pfield(pid,'companyAr')||pfield(pid,'nameEn'),INTRO:c.defs.INTRO||''};
  Object.keys(c.defs).forEach(k=>{if(/^T\d+$/.test(k))m[k]=c.defs[k]});
  let hasVat=0;Object.keys(c.defs).forEach(k=>{if(/^T\d+$/.test(k)&&/ضريبة/.test(c.defs[k])){m[k]=vatStatementAr(r);hasVat=1}});
  const rows=r.items.map((it,k)=>{const up=F.rows[k]?F.rows[k].up:NaN,tt=F.rows[k]?F.rows[k].tt:NaN;
@@ -1778,7 +1796,7 @@ async function buildComb(r){const pid=rpid(r);const c=(S.prof[pid]||{}).comb;if(
  if(!hasVat)vlines.push(vatStatementAr(r));
  const vatP=vlines.map(l=>c.tpl.linePara.replace('@@LINE@@',()=>xe(l))).join('');
  const xml=c.tpl.head+fillTok(c.tpl.pre,m)+c.tpl.tblHead+rows+c.tpl.tblTail+vatP+fillTok(c.tpl.post,m);
- z.file('word/document.xml',xml);await applyOv(z,pid,'comb');
+ z.file('word/document.xml',xml);await applyOv(z,pid,'comb',1);
  return z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'})}
 async function issueComb(){const r=R();if(!finCheck(r))return;try{dl(await buildComb(r),'Quotation - '+(r.no||'draft').replace(/[^\w\-]/g,'_')+'.docx');r.finAt=todayStr();save()}catch(e){alert(e.message)}}
 async function combPreview(){const e=document.getElementById('fpvbox');if(!e)return;if(!R().finSup){e.innerHTML='<div class="muted">اختار المورد الأول.</div>';return}e.innerHTML='<div class="muted">بيجهز المعاينة...</div>';try{const b=await buildComb(R());const box=document.createElement('div');await renderDoc(b,box);e.innerHTML='';e.appendChild(box)}catch(err){e.innerHTML='<div class="note">تعذرت المعاينة: '+esc(err.message)+'</div>'}}
@@ -1817,6 +1835,7 @@ function imgTgt(map,role){return map[role]||((role==='stamp'||role==='sign')&&ma
 function patchDrawSize(xml,id,wIn,ar){const cx=Math.round(wIn*914400),cy=Math.max(1,Math.round(wIn*ar*914400));
  return xml.replace(/<w:drawing>[\s\S]*?<\/w:drawing>/g,d=>{if(d.indexOf('r:embed="'+id+'"')<0)return d;
   d=d.replace(/<wp:(wrapTight|wrapThrough)\b[\s\S]*?<\/wp:\1>/,'<wp:wrapNone/>');
+  d=d.replace(/<a:srcRect[^>]*\/>/,'<a:srcRect/>');
   return d.replace(/<wp:extent cx="\d+" cy="\d+"\/>/,'<wp:extent cx="'+cx+'" cy="'+cy+'"/>').replace(/<a:ext cx="\d+" cy="\d+"\/>/,'<a:ext cx="'+cx+'" cy="'+cy+'"/>')})}
 function patchWmDraw(xml,path,rels){const ids=[];for(const m of rels.matchAll(/<Relationship [^>]*>/g)){const id=(m[0].match(/Id="([^"]+)"/)||[])[1],tg=(m[0].match(/Target="([^"]+)"/)||[])[1];if(id&&tg&&('word/'+tg.replace(/^\.?\/?/,''))===path)ids.push(id)}
  if(!ids.length)return xml;
@@ -1825,26 +1844,33 @@ function patchWmDraw(xml,path,rels){const ids=[];for(const m of rels.matchAll(/<
   d=d.replace(/<wp:(wrapTight|wrapThrough)\b[\s\S]*?<\/wp:\1>/,'<wp:wrapNone/>');
   if(!/<a:alphaModFix/.test(d))d=d.replace(/(<a:blip\b[^>]*>)/,'$1<a:alphaModFix amt="35000"/>');
   return d})}
-async function applyRoles(z,pid,kind){const o=(S.prof[pid]||{});const img=o.img||{};if(!Object.keys(img).some(k=>img[k]))return;
- const map=await roleMapFor(z);const dim=o.imgDim||{};
+async function blank1px(path){const c=document.createElement('canvas');c.width=c.height=1;const b=await new Promise(r=>c.toBlob(r,'image/png'));return imgToFormat(b,path)}
+async function applyRoles(z,pid,kind,keepW){const o=(S.prof[pid]||{});const img=o.img||{};const on=o.imgOn||{};const dim=o.imgDim||{};
+ const isOn=r=>on[r]!==0;
+ if(!Object.keys(img).some(k=>img[k])&&!Object.keys(on).some(k=>on[k]===0))return;
+ const map=await roleMapFor(z);
  const put=async(tgt,fid)=>{const b=await getFile(fid);if(!b)return false;const u8=await imgToFormat(b,tgt.path);if(!z.file(tgt.path))return false;z.file(tgt.path,u8);return true};
  const sizeOf=role=>{const d=dim[role];return d&&d[0]?d[1]/d[0]:0.5};
- const docPart='word/document.xml';
- /* stamp / signature / combined */
- if(img.stampsig){const tgt=imgTgt(map,'stampsig')||map.sign||map.stamp;
-  if(tgt&&await put(tgt,img.stampsig)){let xml=await z.file(tgt.part).async('string');xml=patchDrawSize(xml,tgt.id,IMGW.stampsig,sizeOf('stampsig'));
-   const other=(tgt===map.sign)?map.stamp:map.sign;
-   if(other&&other.part===tgt.part)xml=patchDrawSize(xml,other.id,0.01,1);
-   z.file(tgt.part,xml)}}
- else{for(const role of ['stamp','sign']){if(!img[role])continue;const tgt=imgTgt(map,role);
-   if(tgt&&await put(tgt,img[role])){let xml=await z.file(tgt.part).async('string');xml=patchDrawSize(xml,tgt.id,IMGW[role],sizeOf(role));z.file(tgt.part,xml)}}}
- /* watermark: replace bytes, force behind text + 35% opacity in every part that draws it */
- if(img.wm&&map.wm){if(await put(map.wm,img.wm)){for(const part of Object.keys(z.files).filter(n=>/^word\/(document|header\d|footer\d)\.xml$/.test(n))){const reln='word/_rels/'+part.split('/').pop()+'.rels';if(!z.file(reln))continue;
-   const rels=await z.file(reln).async('string');const xml=await z.file(part).async('string');const nx=patchWmDraw(xml,map.wm.path,rels);if(nx!==xml)z.file(part,nx)}}}
- /* header image + logo: replace bytes only, template keeps size and place */
- if(img.hd&&map.hd)await put(map.hd,img.hd);
- if(img.logo&&map.logo)await put(map.logo,img.logo)}
-const _applyOv0=applyOv;applyOv=async function(z,pid,kind){await _applyOv0(z,pid,kind);try{await applyRoles(z,pid,kind)}catch(e){console.warn('applyRoles',e)}};
+ const key=t=>t? t.part+'|'+t.path+'|'+t.id:'';
+ const used={};const jobs=[];
+ if(img.stampsig&&isOn('stampsig')){const t=imgTgt(map,'stampsig')||map.sign||map.stamp;if(t){used[key(t)]=1;jobs.push({t,role:'stampsig',w:IMGW.stampsig})}}
+ else for(const role of ['stamp','sign']){if(img[role]&&isOn(role)){const t=imgTgt(map,role);if(t&&!used[key(t)]){used[key(t)]=1;jobs.push({t,role,w:IMGW[role]})}}}
+ if(img.wm&&isOn('wm')&&map.wm){used[key(map.wm)]=1;jobs.push({t:map.wm,role:'wm'})}
+ if(img.hd&&isOn('hd')&&map.hd){used[key(map.hd)]=1;jobs.push({t:map.hd,role:'hd'})}
+ if(img.logo&&isOn('logo')&&map.logo){used[key(map.logo)]=1;jobs.push({t:map.logo,role:'logo'})}
+ /* suppress explicitly disabled slots (removes the template's own image from the output) */
+ const suppress=async t=>{if(!t||used[key(t)])return;
+  if(t.vml){if(z.file(t.path))z.file(t.path,await blank1px(t.path))}
+  else{let xml=await z.file(t.part).async('string');xml=patchDrawSize(xml,t.id,0.01,1);z.file(t.part,xml)}};
+ for(const role of ['stamp','sign','stampsig','wm','hd','logo']){if(on[role]===0){const t=(role==='stampsig')?(imgTgt(map,'stampsig')||map.sign||map.stamp):imgTgt(map,role);await suppress(t)}}
+ /* combined on: the unused other body image goes too */
+ if(img.stampsig&&isOn('stampsig')){const t=imgTgt(map,'stampsig')||map.sign||map.stamp;const other=t&&(t===map.sign)?map.stamp:map.sign;if(other)await suppress(other)}
+ for(const j of jobs){
+  if(j.role==='wm'){if(await put(j.t,img.wm)){for(const part of Object.keys(z.files).filter(n=>/^word\/(document|header\d|footer\d)\.xml$/.test(n))){const reln='word/_rels/'+part.split('/').pop()+'.rels';if(!z.file(reln))continue;
+    const rels=await z.file(reln).async('string');const xml=await z.file(part).async('string');const nx=patchWmDraw(xml,j.t.path,rels);if(nx!==xml)z.file(part,nx)}}}
+  else if(j.role==='hd'||j.role==='logo'){await put(j.t,img[j.role])}
+  else{if(await put(j.t,img[j.role])){let xml=await z.file(j.t.part).async('string');xml=patchDrawSize(xml,j.t.id,keepW&&j.t.cx?j.t.cx/914400:j.w,sizeOf(j.role));z.file(j.t.part,xml)}}}}
+const _applyOv0=applyOv;applyOv=async function(z,pid,kind,keepW){await _applyOv0(z,pid,kind);try{await applyRoles(z,pid,kind,keepW)}catch(e){console.warn('applyRoles',e)}};
 /* ---- images card in the templates tab ---- */
 function imgCard(){if(typeof myRole==='function'&&myRole()!=='admin')return '';
  return `<div class="card"><h2>صور الشركة في العروض (ختم، توقيع، ووتر مارك، هيدر)</h2><p class="muted">ارفع كل صورة في مكانها مرة واحدة: بتتطبق على العرض الفني والشامل والتفويض للشركة المختارة فوق. الختم بيطلع بعرض ١.٥ بوصة، التوقيع ١.٧، والاتنين مع بعض ٢.٦ (الارتفاع حسب نسبة الصورة). الووتر مارك بتتحط خلف النص بشفافية باهتة بالحجم الكامل للصفحة. لو رفعت "ختم + توقيع مع بعض" بيحل محل الاتنين. الشكل النهائي اتأكد منه بفتح الملف في Microsoft Word قبل الإرسال.</p><div id="imgcard" class="muted">بيحمّل...</div></div>`}
@@ -1855,12 +1881,16 @@ async function imgCardLoad(){if(S.tab!=='tpl')return;const el=document.getElemen
  for(const [role,lab] of IMGROLES){let src='';if(o.img[role]){const b=await getFile(o.img[role]);if(b)src=URL.createObjectURL(b)}
   const tgt=imgTgt(map,role);
   if(!src&&tgt&&z&&z.file(tgt.path)){try{const u8=await z.file(tgt.path).async('uint8array');src=URL.createObjectURL(new Blob([u8],{type:/png$/i.test(tgt.path)?'image/png':'image/jpeg'}))}catch(e){}}
-  h+=`<div style="width:180px;text-align:center;border:1px solid var(--bd,#d3dae3);border-radius:8px;padding:6px"><div style="height:90px;display:flex;align-items:center;justify-content:center;background:repeating-conic-gradient(#e6e6e6 0 25%,#fff 0 50%) 50%/14px 14px">${src?`<img src="${src}" style="max-width:100%;max-height:90px">`:'<span class="muted">فاضي</span>'}</div><div style="margin:3px 0;font-size:12px"><b>${lab}</b></div><div class="muted" style="font-size:11px;min-height:26px">${o.img[role]?'مرفوعة ✓':(tgt?'صورة القالب الحالية':'مفيش مكان ليها في القالب ده')}</div><label class="b s" style="cursor:pointer;flex-direction:row;justify-content:center">${o.img[role]?'استبدال':'رفع'}<input type="file" id="imgup_${role}" accept="image/*" style="display:none" onchange="imgSlotSet('${role}',this)"></label>${o.img[role]?` <button class="b s r" onclick="imgSlotDel('${role}')">حذف</button>`:''}</div>`}
+  h+=`<div style="width:180px;text-align:center;border:1px solid var(--bd,#d3dae3);border-radius:8px;padding:6px"><div style="height:90px;display:flex;align-items:center;justify-content:center;background:repeating-conic-gradient(#e6e6e6 0 25%,#fff 0 50%) 50%/14px 14px">${src?`<img src="${src}" style="max-width:100%;max-height:90px">`:'<span class="muted">فاضي</span>'}</div><div style="margin:3px 0;font-size:12px"><b>${lab}</b></div><div class="muted" style="font-size:11px;min-height:26px">${o.img[role]?'مرفوعة ✓':(tgt?'صورة القالب الحالية':'مفيش مكان ليها في القالب ده')}</div><label style="flex-direction:row;align-items:center;gap:4px;justify-content:center;font-size:12px"><input type="checkbox" style="width:auto" ${(o.imgOn||{})[role]!==0?'checked':''} onchange="imgSlotToggle('${role}',this.checked)"> ظاهرة في العرض</label><label class="b s" style="cursor:pointer;flex-direction:row;justify-content:center">${o.img[role]?'استبدال':'رفع'}<input type="file" id="imgup_${role}" accept="image/*" style="display:none" onchange="imgSlotSet('${role}',this)"></label>${o.img[role]?` <button class="b s r" onclick="imgSlotDel('${role}')">حذف</button>`:''}</div>`}
  h+='</div>';if(!map.stamp&&!map.sign&&!map.stampsig)h+='<p class="muted" style="margin-top:6px">قالب العرض الفني للشركة دي مفيهوش مكان ختم/توقيع (مفيش صور في جسم الملف): الختم والتوقيع المرفوعين هيستخدموا أول مكان صورة متاح، أو اتجاهلوا لو مفيش.</p>';
  el.innerHTML=h}
+function imgOnFix(o,role,val){o.imgOn=o.imgOn||{};o.imgOn[role]=val;
+ if(val===1&&role==='stampsig'){o.imgOn.stamp=0;o.imgOn.sign=0}
+ if(val===1&&(role==='stamp'||role==='sign'))o.imgOn.stampsig=0}
+function imgSlotToggle(role,chk){const o=pov(TPLSEL);imgOnFix(o,role,chk?1:0);save();render()}
 async function imgSlotSet(role,inp){const f=inp.files[0];if(!f)return;try{const d=await decodeImg(f);if(!d.w||!d.h)throw new Error('الصورة فاضية');
  const id=uid();await putFile(id,f);const o=pov(TPLSEL);o.img=o.img||{};o.imgDim=o.imgDim||{};
- if(o.img[role])await delFile(o.img[role]);o.img[role]=id;o.imgDim[role]=[d.w,d.h];save();render()}catch(e){if(typeof showErr==='function')showErr(e);else alert(e.message)}}
+ if(o.img[role])await delFile(o.img[role]);o.img[role]=id;o.imgDim[role]=[d.w,d.h];imgOnFix(o,role,1);save();render()}catch(e){if(typeof showErr==='function')showErr(e);else alert(e.message)}}
 async function imgSlotDel(role){const o=pov(TPLSEL);if(o.img&&o.img[role]){await delFile(o.img[role]);delete o.img[role];if(o.imgDim)delete o.imgDim[role];save();render()}}
 const _tplLoad1=tplLoad;tplLoad=async function(){await _tplLoad1();try{await imgCardLoad()}catch(e){}};
 
@@ -1868,6 +1898,57 @@ const _tplLoad1=tplLoad;tplLoad=async function(){await _tplLoad1();try{await img
 const _tSetV=tSet;
 tSet=function(){const h=_tSetV();
  return h+`<div class="card"><h2>ضريبة القيمة المضافة</h2><div class="row"><label>النسبة الافتراضية %<input style="width:90px" value="${esc(S.vatDef!=null?S.vatDef:14)}" oninput="S.vatDef=parseFloat(this.value)||0;save()"></label></div><p class="muted">دي النسبة اللي بتتقترح في أي طلب جديد، وتقدر تغيّرها لكل طلب على حدة من تبويب العرض المالي، مع اختيار: غير شاملة (ذكر في الشروط بس)، تضاف على الإجمالي زي هامش الربح، أو شاملة الضريبة.</p></div>`};
+
+/* ================= v5q: user-uploaded templates for technical & financial offers (AR + EN) ================= */
+/* Same engine as the combined quote: upload a docx, the items table / client / ref / date / terms are
+   detected and tokenized, and issuing fills them from the request. Per company, per kind (tech/fin),
+   per language (ar/en). The uploaded file's own layout, images, header/footer are used as-is. */
+function utplPick(r,kind){const o=((S.prof[rpid(r)]||{}).utpl||{})[kind];if(!o)return null;const l=rLang(r)==='ar'?'ar':'en';const u=o[l]||o.ar||o.en;return u?{...u,lang:o[l]?l:(o.ar?'ar':'en')}:null}
+function vatStatementEn(r){const pc=vatPc(r),mode=vatMode(r);
+ if(mode==='incl')return 'The above prices include Value Added Tax (VAT '+pc+'%).';
+ if(mode==='add')return 'The above prices are exclusive of VAT; VAT '+pc+'% will be added to the total.';
+ return 'The above prices are exclusive of Value Added Tax (VAT '+pc+'%).'}
+async function buildUtpl(r,kind,u){const pid=rpid(r);
+ const blob=await getFile(u.docxId);if(!blob)throw new Error('ملف القالب مش موجود على الجهاز ده. ارفعه تاني.');
+ const z=await JSZip.loadAsync(await blob.arrayBuffer());const F=finTotals(r);const cur=r.finCur||S.baseCur;const ar=u.lang==='ar';
+ const m={CLIENT:r.client,DATE:combDate(r,u.defs),INQ:r.no,SUBJECT:r.subject,INTRO:u.defs.INTRO||''};
+ Object.keys(u.defs).forEach(k=>{if(/^T\d+$/.test(k))m[k]=u.defs[k]});
+ let hasVat=0;Object.keys(u.defs).forEach(k=>{if(/^T\d+$/.test(k)&&/ضريبة|VAT/i.test(u.defs[k])){m[k]=ar?vatStatementAr(r):vatStatementEn(r);hasVat=1}});
+ const rows=r.items.map((it,k)=>{const up=F.rows[k]?F.rows[k].up:NaN,tt=F.rows[k]?F.rows[k].tt:NaN;
+  return u.tpl.rowTpl.replace('@@NO@@',()=>xe(it.no)).replace('@@QTY@@',()=>xe(it.qty)).replace('@@UNIT@@',()=>xe(it.unit||''))
+   .replace('@@UP@@',()=>xe(kind==='tech'?'':f2(up))).replace('@@TT@@',()=>xe(kind==='tech'?'':f2(tt))).replace('@@NOTES@@','')
+   .replace('@@DESC@@',()=>String(it.tdesc!=null?it.tdesc:it.desc).split(/\r?\n/).filter(x=>x.trim()).map(l=>u.tpl.linePara.replace('@@LINE@@',()=>xe(l))).join(''))}).join('');
+ const vlines=[];
+ if(kind!=='tech'){vlines.push((ar?'الإجمالي: ':'Total: ')+f2(F.tot)+' '+cur);
+  if(F.vatMode==='add'){vlines.push((ar?'ضريبة القيمة المضافة '+F.vatPc+' %: ':'VAT '+F.vatPc+'%: ')+f2(F.vatAmt)+' '+cur);vlines.push((ar?'الإجمالي شامل الضريبة: ':'Grand Total including VAT: ')+f2(F.grand)+' '+cur)}
+  if(!hasVat)vlines.push(ar?vatStatementAr(r):vatStatementEn(r))}
+ const vatP=vlines.map(l=>u.tpl.linePara.replace('@@LINE@@',()=>xe(l))).join('');
+ const xml=u.tpl.head+fillTok(u.tpl.pre,m)+u.tpl.tblHead+rows+u.tpl.tblTail+vatP+fillTok(u.tpl.post,m);
+ z.file('word/document.xml',xml);await applyRoles(z,pid,kind,1);
+ return z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'})}
+const _buildTechU=buildTech;buildTech=async function(r){const u=utplPick(r,'tech');return u?buildUtpl(r,'tech',u):_buildTechU(r)};
+const _buildFinU=buildFin;buildFin=async function(r){const u=utplPick(r,'fin');return u?buildUtpl(r,'fin',u):_buildFinU(r)};
+/* ---- import + card ---- */
+async function utplImport(inp,kind,lang){const f=inp.files[0];if(!f)return;const pid=TPLSEL;try{
+ const z=await JSZip.loadAsync(f);if(!z.file('word/document.xml'))throw new Error('ده مش ملف Word (docx).');
+ const tk=combTok(await z.file('word/document.xml').async('string'));
+ if(!tk.found.cols.includes('@@DESC@@'))throw new Error('ملقيتش عمود الوصف/الصنف في جدول البنود.');
+ if(kind==='fin'&&!(tk.found.cols.includes('@@UP@@')&&tk.found.cols.includes('@@TT@@')))
+  alert('تنبيه: ملف العرض المالي ده مفيهوش عمود سعر وحدة + إجمالي متعرف عليهم — الأسعار مش هتظهر في الجدول. الأفضل ملف فيه أعمدة الأسعار.');
+ const fid=uid();await putFile(fid,f);const o=pov(pid);o.utpl=o.utpl||{};o.utpl[kind]=o.utpl[kind]||{};
+ if(o.utpl[kind][lang])await delFile(o.utpl[kind][lang].docxId);
+ o.utpl[kind][lang]={docxId:fid,tpl:{head:tk.head,pre:tk.pre,tblHead:tk.tblHead,rowTpl:tk.rowTpl,linePara:tk.linePara,tblTail:tk.tblTail,post:tk.post},defs:tk.defs};
+ save();render();
+ alert('اتستورد قالب '+(kind==='tech'?'العرض الفني':'العرض المالي')+' ('+(lang==='ar'?'عربي':'إنجليزي')+') لـ '+PDEF[pid].label+'.\nالأعمدة المتعرفة: '+tk.found.cols.map(t=>t.replace(/@@|@/g,'')).join('، ')+'.\n'+(tk.found.client?'العميل المتعرف: '+tk.found.client+'\n':'')+'الشروط: '+(Object.keys(tk.defs).filter(k=>/^T\d+$/.test(k)).length)+' سطر قابل للتعديل.\nراجع بمعاينة قبل أول إصدار.')}catch(e){alert('تعذر الاستيراد: '+e.message)}}
+async function utplDel(kind,lang){const pid=TPLSEL;const o=pov(pid);const u=(o.utpl||{})[kind];if(!u||!u[lang])return;if(!confirm('حذف القالب المرفوع؟ هيرجع الإصدار للقالب الأصلي.'))return;await delFile(u[lang].docxId);delete u[lang];save();render()}
+function utplCardF(){if(typeof myRole==='function'&&myRole()!=='admin')return '';const pid=TPLSEL;const o=pov(pid);o.utpl=o.utpl||{};
+ const row=(kind,klab,lang,llab)=>{const u=(o.utpl[kind]||{})[lang];
+  const st=u?('مرفوع ✓ ('+(Object.keys(u.defs).filter(k=>/^T\d+$/.test(k)).length)+' شرط قابل للتعديل)'):'مفيش — بيستخدم القالب الأصلي';
+  const terms=u?Object.keys(u.defs).filter(k=>/^T\d+$/.test(k)).sort((a,b)=>+a.slice(1)-+b.slice(1)).map(k=>`<label style="width:100%">شرط ${k.slice(1)}<input dir="auto" value="${esc(u.defs[k])}" oninput="pov('${pid}').utpl.${kind}.${lang}.defs['${k}']=this.value;save()"></label>`).join(''):'';
+  return `<div style="border:1px solid var(--bd,#d3dae3);border-radius:8px;padding:8px;margin-top:6px"><b>${klab} — ${llab}</b> <span class="muted" style="font-size:12px">${st}</span><div class="row" style="margin-top:4px"><label class="b s" style="cursor:pointer;flex-direction:row;justify-content:center">${u?'إعادة رفع':'رفع ملف Word'}<input type="file" accept=".docx" style="display:none" onchange="utplImport(this,'${kind}','${lang}')"></label>${u?`<button class="b s r" onclick="utplDel('${kind}','${lang}')">حذف القالب</button>`:''}</div>${u?`<div class="row" style="margin-top:6px">${terms}</div>`:''}</div>`};
+ return `<div class="card"><h2>قوالب مرفوعة من عندك (فني ومالي، عربي وإنجليزي)</h2><p class="muted">ارفع ملف Word بتاعك لأي عرض، والبرنامج بيشتغل عليه: بيتعرف على جدول البنود والعميل ورقم الطلب والتاريخ والشروط وبيملاهم من الطلب، وبيستخدم شكل ملفك نفسه (هيدر وفوتر وصور). وقت الإصدار بيختار القالب حسب لغة العرض (عربي/إنجليزي)، ولو رفعت لغة واحدة بس بيستخدمها للاتنين. <b>المالي لازم يكون فيه أعمدة سعر الوحدة والإجمالي</b> زي ملف العرض الشامل. الشروط بتتعدل من هنا بعد الرفع. راجع بمعاينة قبل أول إصدار.</p>
+ ${row('tech','العرض الفني','ar','عربي')}${row('tech','العرض الفني','en','إنجليزي')}${row('fin','العرض المالي','ar','عربي')}${row('fin','العرض المالي','en','إنجليزي')}</div>`}
+const _tTpl6=tTpl;tTpl=function(){return _tTpl6()+utplCardF()};
 
 /* ---------- supplier finder ---------- */
 function mountSF(){const h=document.getElementById('sfhost');if(h.firstChild)return;const fr=document.createElement('iframe');fr.srcdoc=document.getElementById('sf-src').textContent.replace(/<\\\/script/g,'</script');h.appendChild(fr)}
