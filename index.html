@@ -867,12 +867,25 @@ function addFinCols(tpl){let head=tpl.tblHead,row=tpl.rowTpl;const g=gridW(head)
  return {...tpl,tblHead:head,rowTpl:row}}
 function finPrice(r,it,x){const o=(r.finP||{})[it.id];if(o!=null&&o!=='')return parseFloat(o);const c=x&&x.per[it.id];if(c==null||isNaN(c))return NaN;const m=parseFloat(r.margin)||0;return c*(1+m/100)}
 const f2=n=>isNaN(n)?'':n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-function finTotals(r){const {res}=analyse(r);const x=res.find(y=>y.q.id===r.finSup);let tot=0,miss=0;const rows=r.items.map(it=>{const up=finPrice(r,it,x);if(isNaN(up))miss++;else tot+=up*it.qty;return {up,tt:isNaN(up)?NaN:up*it.qty}});return {rows,tot,miss,x}}
+const vatMode=r=>(r&&r.finVatMode)||'excl';
+const vatPc=r=>parseFloat(r&&r.finVat!=null&&r.finVat!==''?r.finVat:(S.vatDef!=null?S.vatDef:14))||0;
+function vatStatement(r){const pc=vatPc(r),mode=vatMode(r),ar=rLang(r)==='ar';
+ if(mode==='incl')return ar?'الأسعار المقدمة شاملة ضريبة القيمة المضافة ('+pc+'%).':'The above prices include Value Added Tax (VAT '+pc+'%).';
+ if(mode==='add')return ar?'الأسعار المقدمة غير شاملة الضريبة، وتضاف ضريبة القيمة المضافة ('+pc+'%) على الإجمالي.':'The above prices are exclusive of VAT; VAT '+pc+'% will be added to the total.';
+ return ar?'الأسعار المقدمة غير شاملة ضريبة القيمة المضافة ('+pc+'%).':'The above prices are exclusive of Value Added Tax (VAT '+pc+'%).'}
+function vatStatementAr(r){const pc=vatPc(r),mode=vatMode(r);
+ if(mode==='incl')return 'الأسعار المقدمة شاملة ضريبة القيمة المضافة '+pc+' % .';
+ if(mode==='add')return 'الأسعار المقدمة غير شاملة الضريبة، وتضاف ضريبة القيمة المضافة '+pc+' % على الإجمالي .';
+ return 'الأسعار المقدمة غير شاملة ضريبة القيمة المضافة '+pc+' % .'}
+function finTotals(r){const {res}=analyse(r);const x=res.find(y=>y.q.id===r.finSup);let tot=0,miss=0;const rows=r.items.map(it=>{const up=finPrice(r,it,x);if(isNaN(up))miss++;else tot+=up*it.qty;return {up,tt:isNaN(up)?NaN:up*it.qty}});const F={rows,tot,miss,x};F.vatMode=vatMode(r);F.vatPc=vatPc(r);F.vatAmt=F.vatMode==='add'?F.tot*F.vatPc/100:0;F.grand=F.tot+F.vatAmt;return F}
 async function buildFin(r){const pid=rpid(r);const tpl=addFinCols(PRDOCS[pid].tech.tpl);const z=await loadDocZip(pid,'tech');const F=finTotals(r);
  const m={SUBJECT:r.subject,CLIENT:r.client,CLIENT2:r.clientShort?'“'+r.clientShort+'”':'',DATE:r.date,INQ:r.no,FROMNAME:(rLang(r)==='ar'&&pfield(pid,'companyAr'))||pfield(pid,'fromName')||pfield(pid,'nameEn'),SIGNER:(rLang(r)==='ar'&&pfield(pid,'signAr'))||pfield(pid,'signerEn'),TITLE:(rLang(r)==='ar'&&pfield(pid,'titleAr'))||pfield(pid,'titleEn')};
  PDEF[pid].terms.forEach(t=>{m[t[3]]=T(t[0])});const cur=r.finCur||S.baseCur;
  const rows=techItems(r).map((i,k)=>tpl.rowTpl.replace('@@NO@@',()=>xe(i.no)).replace('@@QTY@@',()=>xe(i.qty)).replace('@@UP@@',()=>xe(f2(F.rows[k].up))).replace('@@TT@@',()=>xe(f2(F.rows[k].tt))).replace('@@DESC@@',()=>(i.lines.length?i.lines:['']).map(l=>tpl.linePara.replace('@@LINE@@',()=>xe(l))).join(''))).join('');
- const totP=tpl.linePara.replace('@@LINE@@',()=>xe('Total: '+f2(F.tot)+' '+cur));
+ const totL=['Total: '+f2(F.tot)+' '+cur];
+ if(F.vatMode==='add'){totL.push('VAT '+F.vatPc+'%: '+f2(F.vatAmt)+' '+cur);totL.push('Grand Total including VAT: '+f2(F.grand)+' '+cur)}
+ totL.push(vatStatement(r));
+ const totP=totL.map(l=>tpl.linePara.replace('@@LINE@@',()=>xe(l))).join('');
  const fixT=s=>s.replace(/Technical\s+Offer/gi,'Financial Offer');
  const xml=tpl.head+fixT(fillTok(tpl.pre,m))+tpl.tblHead+rows+tpl.tblTail+totP+fixT(fillTok(tpl.post,m));z.file('word/document.xml',arPost(r,xml));await applyOv(z,pid,'tech');
  return z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'})}
@@ -884,10 +897,12 @@ async function finPreview(){const e=document.getElementById('fpvbox');if(!e)retu
 function tFin(){const r=R();const {res}=analyse(r);const F=finTotals(r);const pid=rpid(r);
  return `<div class="card"><h2>إصدار العرض المالي</h2><div class="note">العرض المالي بيتعمل من نفس قالب العرض الفني للشركة المختارة (نفس الهيدر والختم والتوقيع) مع عمودين زيادة: Unit Price و Total. مفيش قالب منفصل. الأسعار بتتحسب من عرض المورد المختار + هامش الربح بعملة الأساس، وتقدر تعدل سعر أي بند يدوي.</div>
 <div class="row">${compSel("R().company=this.value;save();render()",pid)}<label>المورد المختار<select onchange="R().finSup=this.value;save();render()"><option value="">اختر</option>${res.map(x=>`<option value="${x.q.id}" ${r.finSup===x.q.id?'selected':''}>${esc(x.q.supplier)}</option>`).join('')}</select></label>
-<label>هامش الربح %<input style="width:90px" value="${esc(r.margin||'')}" oninput="R().margin=this.value;save()" onchange="render()"></label><label>العملة المكتوبة في العرض<input style="width:90px" value="${esc(r.finCur||S.baseCur)}" oninput="R().finCur=this.value;save()"></label></div>
+<label>هامش الربح %<input style="width:90px" value="${esc(r.margin||'')}" oninput="R().margin=this.value;save()" onchange="render()"></label><label>العملة المكتوبة في العرض<input style="width:90px" value="${esc(r.finCur||S.baseCur)}" oninput="R().finCur=this.value;save()"></label>
+<label>ضريبة القيمة المضافة<select onchange="R().finVatMode=this.value;save();render()">${[['excl','غير شاملة (في الشروط بس)'],['add','تضاف على الإجمالي (زي هامش الربح)'],['incl','شاملة الضريبة']].map(o=>`<option value="${o[0]}" ${vatMode(r)===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select></label>
+<label>نسبة الضريبة %<input style="width:70px" value="${esc(vatPc(r))}" oninput="R().finVat=this.value;save()" onchange="render()"></label></div>
 <p class="muted">لو العرض بعملة غير عملة الأساس (${esc(S.baseCur)}) اكتب العملة الصحيحة هنا بعد ما تتأكد إن الأسعار محوّلة بسعر الصرف اللي في الإعدادات.</p>
 <div class="row">${langBox()}<button class="b g" onclick="issueFin()">تنزيل Word</button><button class="b" onclick="issueFinPdf()">PDF تقريبي (من المتصفح)</button><button class="b o" onclick="finPreview()">معاينة</button></div>
-<div class="scroll"><table style="margin-top:10px"><tr><th>م</th><th>الوصف</th><th>الكمية</th><th>تكلفة الوحدة</th><th>سعر البيع للوحدة (قابل للتعديل)</th><th>الإجمالي</th></tr>${r.items.map((it,i)=>{const c=F.x&&F.x.per[it.id];return `<tr><td style="width:70px"><input value="${esc(it.no)}" oninput="R().items[${i}].no=this.value;save()"></td><td>${esc(it.desc)}</td><td>${esc(it.qty)}</td><td>${c==null||isNaN(c)?'-':c.toFixed(2)}</td><td style="width:140px"><input value="${esc(((r.finP||{})[it.id]!=null)?r.finP[it.id]:(isNaN(F.rows[i].up)?'':F.rows[i].up.toFixed(2)))}" oninput="(R().finP=R().finP||{})['${it.id}']=this.value;save()" onchange="render()"></td><td>${f2(F.rows[i].tt)||'-'}</td></tr>`}).join('')}<tr><td colspan="5"><b>الإجمالي</b></td><td><b>${f2(F.tot)}</b></td></tr></table></div>
+<div class="scroll"><table style="margin-top:10px"><tr><th>م</th><th>الوصف</th><th>الكمية</th><th>تكلفة الوحدة</th><th>سعر البيع للوحدة (قابل للتعديل)</th><th>الإجمالي</th></tr>${r.items.map((it,i)=>{const c=F.x&&F.x.per[it.id];return `<tr><td style="width:70px"><input value="${esc(it.no)}" oninput="R().items[${i}].no=this.value;save()"></td><td>${esc(it.desc)}</td><td>${esc(it.qty)}</td><td>${c==null||isNaN(c)?'-':c.toFixed(2)}</td><td style="width:140px"><input value="${esc(((r.finP||{})[it.id]!=null)?r.finP[it.id]:(isNaN(F.rows[i].up)?'':F.rows[i].up.toFixed(2)))}" oninput="(R().finP=R().finP||{})['${it.id}']=this.value;save()" onchange="render()"></td><td>${f2(F.rows[i].tt)||'-'}</td></tr>`}).join('')}<tr><td colspan="5"><b>الإجمالي</b></td><td><b>${f2(F.tot)}</b></td></tr>${F.vatMode==='add'?`<tr><td colspan="5">ضريبة القيمة المضافة (${F.vatPc}%)</td><td>${f2(F.vatAmt)}</td></tr><tr><td colspan="5"><b>الإجمالي شامل الضريبة</b></td><td><b>${f2(F.grand)}</b></td></tr>`:''}</table></div>
 <p class="muted">التكلفة لا تشمل شحن أو جمارك أو أي مصاريف غير مذكورة في عرض المورد. راجع الأرقام قبل ما تبعت.</p></div>
 <div class="card"><h2>معاينة</h2><div id="fpvbox" class="pvbox"><div class="muted">دوس "معاينة".</div></div></div>`}
 /* --- attachments (drawings, datasheets) --- */
@@ -1475,7 +1490,7 @@ function arPost(r,xml){return rLang(r)==='ar'?arDoc(xml,!!r.arDigits):xml}
 function langBox(){const r=R();return `<label style="width:150px">لغة العرض<select onchange="R().lang=this.value;save();render()"><option value="en" ${rLang(r)==='en'?'selected':''}>English</option><option value="ar" ${rLang(r)==='ar'?'selected':''}>عربي</option></select></label>${rLang(r)==='ar'?`<label style="flex-direction:row;align-items:center;gap:6px;width:auto"><input type="checkbox" style="width:auto" ${r.arDigits?'checked':''} onchange="R().arDigits=this.checked;save();render()"> أرقام عربية (٠١٢)</label><div class="note" style="width:100%;font-size:12px">النسخة العربية بتتولد من قالب الشركة الإنجليزي: العناوين الثابتة والشروط الافتراضية المعروفة بتتترجم، والتوقيع والاسم بيتاخدوا من حقول الشركة العربية (قوالب الشركات). أي شرط بتكتبه بإيدك بعربي بيطلع زي ما هو. الهيدر والفوتر والختم صور القالب زي ما هي. راجع الملف في Word قبل الإرسال.</div>`:''}`}
 
 /* ---- in-app update notice (hosted only): compares BUILD_ID with version.json on the site ---- */
-const BUILD_ID='202611261203';
+const BUILD_ID='202611261242';
 let UPD={shown:false,v:null};
 async function updCheck(){if(UPD.shown||BUILD_ID.indexOf('@@')===0||!synHosted())return;
  try{const r=await fetch('version.json?_='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();if(!j||!j.v||String(j.v)===BUILD_ID)return;UPD.shown=true;UPD.v=j.v;updShow(j)}catch(e){}}
@@ -1724,6 +1739,10 @@ function combTok(doc){
    if(phase&&t&&!/^[\d\s\/\-.م]+$/.test(t))phase=0;
    out.push(s)}
   post2=out.join('')}
+ // date: if the file has no date line at all, add تاريخ:@@DATE@@ right after the INQ (or الساده) paragraph
+ if(pre2.indexOf('@@DATE@@')<0&&post2.indexOf('@@DATE@@')<0){const segs=paraSplit(pre2);const out=[];let done=0;
+  for(const s of segs){out.push(s);if(!done&&/^<w:p[ >]/.test(s)&&/@@INQ@@|الساده|السادة/.test(ptxt(s))){out.push(setParaXml(s,'تاريخ:@@DATE@@'));found.date='auto';done=1}}
+  pre2=out.join('')}
  return {head,pre:pre2,tblHead,rowTpl,linePara,tblTail:'</w:tbl>',post:post2,defs,found}}
 async function combImport(inp){const f=inp.files[0];if(!f)return;const pid=TPLSEL;try{
  const z=await JSZip.loadAsync(f);if(!z.file('word/document.xml'))throw new Error('ده مش ملف Word (docx).');
@@ -1751,15 +1770,104 @@ async function buildComb(r){const pid=rpid(r);const c=(S.prof[pid]||{}).comb;if(
  const F=finTotals(r);const cur=r.finCur||S.baseCur;
  const m={CLIENT:r.client,DATE:r.date,INQ:r.no,SUBJECT:r.subject,CNAME:pfield(pid,'companyAr')||pfield(pid,'nameEn'),INTRO:c.defs.INTRO||''};
  Object.keys(c.defs).forEach(k=>{if(/^T\d+$/.test(k))m[k]=c.defs[k]});
+ let hasVat=0;Object.keys(c.defs).forEach(k=>{if(/^T\d+$/.test(k)&&/ضريبة/.test(c.defs[k])){m[k]=vatStatementAr(r);hasVat=1}});
  const rows=r.items.map((it,k)=>{const up=F.rows[k]?F.rows[k].up:NaN,tt=F.rows[k]?F.rows[k].tt:NaN;
   return c.tpl.rowTpl.replace('@@NO@@',()=>xe(it.no)).replace('@@QTY@@',()=>xe(it.qty)).replace('@@UNIT@@',()=>xe(it.unit||'')).replace('@@UP@@',()=>xe(f2(up))).replace('@@TT@@',()=>xe(f2(tt))).replace('@@NOTES@@','').replace('@@DESC@@',()=>String(it.tdesc!=null?it.tdesc:it.desc).split(/\r?\n/).filter(x=>x.trim()).map(l=>c.tpl.linePara.replace('@@LINE@@',()=>xe(l))).join(''))}).join('');
- const xml=c.tpl.head+fillTok(c.tpl.pre,m)+c.tpl.tblHead+rows+c.tpl.tblTail+fillTok(c.tpl.post,m);
+ const vlines=[];
+ if(F.vatMode==='add'){vlines.push('الإجمالي: '+f2(F.tot)+' '+cur);vlines.push('ضريبة القيمة المضافة '+F.vatPc+' %: '+f2(F.vatAmt)+' '+cur);vlines.push('الإجمالي شامل الضريبة: '+f2(F.grand)+' '+cur)}
+ if(!hasVat)vlines.push(vatStatementAr(r));
+ const vatP=vlines.map(l=>c.tpl.linePara.replace('@@LINE@@',()=>xe(l))).join('');
+ const xml=c.tpl.head+fillTok(c.tpl.pre,m)+c.tpl.tblHead+rows+c.tpl.tblTail+vatP+fillTok(c.tpl.post,m);
  z.file('word/document.xml',xml);await applyOv(z,pid,'comb');
  return z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'})}
 async function issueComb(){const r=R();if(!finCheck(r))return;try{dl(await buildComb(r),'Quotation - '+(r.no||'draft').replace(/[^\w\-]/g,'_')+'.docx');r.finAt=todayStr();save()}catch(e){alert(e.message)}}
 async function combPreview(){const e=document.getElementById('fpvbox');if(!e)return;if(!R().finSup){e.innerHTML='<div class="muted">اختار المورد الأول.</div>';return}e.innerHTML='<div class="muted">بيجهز المعاينة...</div>';try{const b=await buildComb(R());const box=document.createElement('div');await renderDoc(b,box);e.innerHTML='';e.appendChild(box)}catch(err){e.innerHTML='<div class="note">تعذرت المعاينة: '+esc(err.message)+'</div>'}}
 const _tFin0=tFin;tFin=function(){let h=_tFin0();const r=R();const c=r&&(S.prof[rpid(r)]||{}).comb;if(!c)return h;
  return h.replace('<button class="b g" onclick="issueFin()">','<button class="b g" onclick="issueComb()">عرض شامل Word</button> <button class="b o" onclick="combPreview()">معاينة الشامل</button> <button class="b g" onclick="issueFin()">')};
+
+/* ================= v5o: per-company image slots (stamp / signature / watermark / header) ================= */
+/* Role targets are located in the actual template zip at issue time:
+   - body (document.xml) drawings: first = stamp, last = signature; a single one = combined stamp+signature
+   - big behind-text header drawing (>20 sq in) = watermark
+   - VML header images = header logo
+   - remaining header drawings = header image
+   Uploads replace those targets and fix size/placement: stamp 1.5in, signature 1.7in, combined 2.6in wide
+   (height follows the uploaded image's aspect). Watermark is forced behind text at 35% opacity, full template size. */
+const IMGROLES=[['logo','لوجو الهيدر'],['hd','صورة الهيدر'],['wm','ووتر مارك (خلفية باهتة)'],['stamp','ختم الشركة'],['sign','التوقيع'],['stampsig','ختم + توقيع مع بعض']];
+const IMGW={stamp:1.5,sign:1.7,stampsig:2.6};
+async function roleMapFor(z){const parts=Object.keys(z.files).filter(n=>/^word\/(document|header\d|footer\d)\.xml$/.test(n));const found=[];
+ for(const part of parts){const reln='word/_rels/'+part.split('/').pop()+'.rels';const rels={};
+  if(z.file(reln)){const rx=await z.file(reln).async('string');for(const m of rx.matchAll(/<Relationship [^>]*>/g)){const id=(m[0].match(/Id="([^"]+)"/)||[])[1],tg=(m[0].match(/Target="([^"]+)"/)||[])[1];if(id&&tg)rels[id]=tg.replace(/^\.?\/?/,'')}}
+  const xml=await z.file(part).async('string');
+  for(const m of xml.matchAll(/<w:drawing>[\s\S]*?<\/w:drawing>/g)){const d=m[0];const em=(d.match(/r:embed="([^"]+)"/)||[])[1];const ext=d.match(/<wp:extent cx="(\d+)" cy="(\d+)"/);if(!em||!rels[em]||!/media\//.test(rels[em]))continue;
+   found.push({part,id:em,path:'word/'+rels[em],vml:0,cx:ext?+ext[1]:0,cy:ext?+ext[2]:0,behind:/behindDoc="1"/.test(d),idx:m.index,doc:part==='word/document.xml'})}
+  for(const m of xml.matchAll(/<v:imagedata [^>]*r:id="([^"]+)"/g)){const id=m[1];if(rels[id]&&/media\//.test(rels[id]))found.push({part,id,path:'word/'+rels[id],vml:1,cx:0,cy:0,behind:1,idx:m.index,doc:0})}}
+ const map={};const body=found.filter(f=>f.doc&&!f.vml).sort((a,b)=>a.idx-b.idx);
+ if(body.length===1)map.stampsig=body[0];
+ else if(body.length>1){map.stamp=body[0];map.sign=body[body.length-1]}
+ const hdr=found.filter(f=>!f.doc&&!f.vml&&/header/.test(f.part));
+ const big=hdr.filter(f=>f.behind&&(f.cx/914400)*(f.cy/914400)>20).sort((a,b)=>b.cx*b.cy-a.cx*a.cy);
+ if(big.length)map.wm=big[0];
+ const rest=hdr.filter(f=>!map.wm||f.path!==map.wm.path||f.part!==map.wm.part);
+ if(rest.length)map.hd=rest.sort((a,b)=>b.cx*b.cy-a.cx*a.cy)[0];
+ const vml=found.filter(f=>f.vml&&/header/.test(f.part));
+ if(vml.length)map.logo=vml[0];
+ return map}
+function imgTgt(map,role){return map[role]||((role==='stamp'||role==='sign')&&map.stampsig)||null}
+function patchDrawSize(xml,id,wIn,ar){const cx=Math.round(wIn*914400),cy=Math.max(1,Math.round(wIn*ar*914400));
+ return xml.replace(/<w:drawing>[\s\S]*?<\/w:drawing>/g,d=>{if(d.indexOf('r:embed="'+id+'"')<0)return d;
+  d=d.replace(/<wp:(wrapTight|wrapThrough)\b[\s\S]*?<\/wp:\1>/,'<wp:wrapNone/>');
+  return d.replace(/<wp:extent cx="\d+" cy="\d+"\/>/,'<wp:extent cx="'+cx+'" cy="'+cy+'"/>').replace(/<a:ext cx="\d+" cy="\d+"\/>/,'<a:ext cx="'+cx+'" cy="'+cy+'"/>')})}
+function patchWmDraw(xml,path,rels){const ids=[];for(const m of rels.matchAll(/<Relationship [^>]*>/g)){const id=(m[0].match(/Id="([^"]+)"/)||[])[1],tg=(m[0].match(/Target="([^"]+)"/)||[])[1];if(id&&tg&&('word/'+tg.replace(/^\.?\/?/,''))===path)ids.push(id)}
+ if(!ids.length)return xml;
+ return xml.replace(/<w:drawing>[\s\S]*?<\/w:drawing>/g,d=>{const em=(d.match(/r:embed="([^"]+)"/)||[])[1];if(!em||ids.indexOf(em)<0)return d;
+  if(/<wp:anchor /.test(d)&&!/behindDoc=/.test(d))d=d.replace('<wp:anchor ','<wp:anchor behindDoc="1" ');
+  d=d.replace(/<wp:(wrapTight|wrapThrough)\b[\s\S]*?<\/wp:\1>/,'<wp:wrapNone/>');
+  if(!/<a:alphaModFix/.test(d))d=d.replace(/(<a:blip\b[^>]*>)/,'$1<a:alphaModFix amt="35000"/>');
+  return d})}
+async function applyRoles(z,pid,kind){const o=(S.prof[pid]||{});const img=o.img||{};if(!Object.keys(img).some(k=>img[k]))return;
+ const map=await roleMapFor(z);const dim=o.imgDim||{};
+ const put=async(tgt,fid)=>{const b=await getFile(fid);if(!b)return false;const u8=await imgToFormat(b,tgt.path);if(!z.file(tgt.path))return false;z.file(tgt.path,u8);return true};
+ const sizeOf=role=>{const d=dim[role];return d&&d[0]?d[1]/d[0]:0.5};
+ const docPart='word/document.xml';
+ /* stamp / signature / combined */
+ if(img.stampsig){const tgt=imgTgt(map,'stampsig')||map.sign||map.stamp;
+  if(tgt&&await put(tgt,img.stampsig)){let xml=await z.file(tgt.part).async('string');xml=patchDrawSize(xml,tgt.id,IMGW.stampsig,sizeOf('stampsig'));
+   const other=(tgt===map.sign)?map.stamp:map.sign;
+   if(other&&other.part===tgt.part)xml=patchDrawSize(xml,other.id,0.01,1);
+   z.file(tgt.part,xml)}}
+ else{for(const role of ['stamp','sign']){if(!img[role])continue;const tgt=imgTgt(map,role);
+   if(tgt&&await put(tgt,img[role])){let xml=await z.file(tgt.part).async('string');xml=patchDrawSize(xml,tgt.id,IMGW[role],sizeOf(role));z.file(tgt.part,xml)}}}
+ /* watermark: replace bytes, force behind text + 35% opacity in every part that draws it */
+ if(img.wm&&map.wm){if(await put(map.wm,img.wm)){for(const part of Object.keys(z.files).filter(n=>/^word\/(document|header\d|footer\d)\.xml$/.test(n))){const reln='word/_rels/'+part.split('/').pop()+'.rels';if(!z.file(reln))continue;
+   const rels=await z.file(reln).async('string');const xml=await z.file(part).async('string');const nx=patchWmDraw(xml,map.wm.path,rels);if(nx!==xml)z.file(part,nx)}}}
+ /* header image + logo: replace bytes only, template keeps size and place */
+ if(img.hd&&map.hd)await put(map.hd,img.hd);
+ if(img.logo&&map.logo)await put(map.logo,img.logo)}
+const _applyOv0=applyOv;applyOv=async function(z,pid,kind){await _applyOv0(z,pid,kind);try{await applyRoles(z,pid,kind)}catch(e){console.warn('applyRoles',e)}};
+/* ---- images card in the templates tab ---- */
+function imgCard(){if(typeof myRole==='function'&&myRole()!=='admin')return '';
+ return `<div class="card"><h2>صور الشركة في العروض (ختم، توقيع، ووتر مارك، هيدر)</h2><p class="muted">ارفع كل صورة في مكانها مرة واحدة: بتتطبق على العرض الفني والشامل والتفويض للشركة المختارة فوق. الختم بيطلع بعرض ١.٥ بوصة، التوقيع ١.٧، والاتنين مع بعض ٢.٦ (الارتفاع حسب نسبة الصورة). الووتر مارك بتتحط خلف النص بشفافية باهتة بالحجم الكامل للصفحة. لو رفعت "ختم + توقيع مع بعض" بيحل محل الاتنين. الشكل النهائي اتأكد منه بفتح الملف في Microsoft Word قبل الإرسال.</p><div id="imgcard" class="muted">بيحمّل...</div></div>`}
+const _tTpl5=tTpl;tTpl=function(){return _tTpl5()+imgCard()};
+async function imgCardLoad(){if(S.tab!=='tpl')return;const el=document.getElementById('imgcard');if(!el)return;const pid=TPLSEL;const o=pov(pid);o.img=o.img||{};o.imgDim=o.imgDim||{};
+ let z=null,map={};try{z=await loadDocZip(pid,'tech');map=await roleMapFor(z)}catch(e){}
+ let h='<div class="row" style="align-items:flex-start">';
+ for(const [role,lab] of IMGROLES){let src='';if(o.img[role]){const b=await getFile(o.img[role]);if(b)src=URL.createObjectURL(b)}
+  const tgt=imgTgt(map,role);
+  if(!src&&tgt&&z&&z.file(tgt.path)){try{const u8=await z.file(tgt.path).async('uint8array');src=URL.createObjectURL(new Blob([u8],{type:/png$/i.test(tgt.path)?'image/png':'image/jpeg'}))}catch(e){}}
+  h+=`<div style="width:180px;text-align:center;border:1px solid var(--bd,#d3dae3);border-radius:8px;padding:6px"><div style="height:90px;display:flex;align-items:center;justify-content:center;background:repeating-conic-gradient(#e6e6e6 0 25%,#fff 0 50%) 50%/14px 14px">${src?`<img src="${src}" style="max-width:100%;max-height:90px">`:'<span class="muted">فاضي</span>'}</div><div style="margin:3px 0;font-size:12px"><b>${lab}</b></div><div class="muted" style="font-size:11px;min-height:26px">${o.img[role]?'مرفوعة ✓':(tgt?'صورة القالب الحالية':'مفيش مكان ليها في القالب ده')}</div><label class="b s" style="cursor:pointer;flex-direction:row;justify-content:center">${o.img[role]?'استبدال':'رفع'}<input type="file" id="imgup_${role}" accept="image/*" style="display:none" onchange="imgSlotSet('${role}',this)"></label>${o.img[role]?` <button class="b s r" onclick="imgSlotDel('${role}')">حذف</button>`:''}</div>`}
+ h+='</div>';if(!map.stamp&&!map.sign&&!map.stampsig)h+='<p class="muted" style="margin-top:6px">قالب العرض الفني للشركة دي مفيهوش مكان ختم/توقيع (مفيش صور في جسم الملف): الختم والتوقيع المرفوعين هيستخدموا أول مكان صورة متاح، أو اتجاهلوا لو مفيش.</p>';
+ el.innerHTML=h}
+async function imgSlotSet(role,inp){const f=inp.files[0];if(!f)return;try{const d=await decodeImg(f);if(!d.w||!d.h)throw new Error('الصورة فاضية');
+ const id=uid();await putFile(id,f);const o=pov(TPLSEL);o.img=o.img||{};o.imgDim=o.imgDim||{};
+ if(o.img[role])await delFile(o.img[role]);o.img[role]=id;o.imgDim[role]=[d.w,d.h];save();render()}catch(e){if(typeof showErr==='function')showErr(e);else alert(e.message)}}
+async function imgSlotDel(role){const o=pov(TPLSEL);if(o.img&&o.img[role]){await delFile(o.img[role]);delete o.img[role];if(o.imgDim)delete o.imgDim[role];save();render()}}
+const _tplLoad1=tplLoad;tplLoad=async function(){await _tplLoad1();try{await imgCardLoad()}catch(e){}};
+
+/* ================= v5p: editable default VAT rate in settings ================= */
+const _tSetV=tSet;
+tSet=function(){const h=_tSetV();
+ return h+`<div class="card"><h2>ضريبة القيمة المضافة</h2><div class="row"><label>النسبة الافتراضية %<input style="width:90px" value="${esc(S.vatDef!=null?S.vatDef:14)}" oninput="S.vatDef=parseFloat(this.value)||0;save()"></label></div><p class="muted">دي النسبة اللي بتتقترح في أي طلب جديد، وتقدر تغيّرها لكل طلب على حدة من تبويب العرض المالي، مع اختيار: غير شاملة (ذكر في الشروط بس)، تضاف على الإجمالي زي هامش الربح، أو شاملة الضريبة.</p></div>`};
 
 /* ---------- supplier finder ---------- */
 function mountSF(){const h=document.getElementById('sfhost');if(h.firstChild)return;const fr=document.createElement('iframe');fr.srcdoc=document.getElementById('sf-src').textContent.replace(/<\\\/script/g,'</script');h.appendChild(fr)}
