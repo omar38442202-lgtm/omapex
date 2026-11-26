@@ -1475,7 +1475,7 @@ function arPost(r,xml){return rLang(r)==='ar'?arDoc(xml,!!r.arDigits):xml}
 function langBox(){const r=R();return `<label style="width:150px">لغة العرض<select onchange="R().lang=this.value;save();render()"><option value="en" ${rLang(r)==='en'?'selected':''}>English</option><option value="ar" ${rLang(r)==='ar'?'selected':''}>عربي</option></select></label>${rLang(r)==='ar'?`<label style="flex-direction:row;align-items:center;gap:6px;width:auto"><input type="checkbox" style="width:auto" ${r.arDigits?'checked':''} onchange="R().arDigits=this.checked;save();render()"> أرقام عربية (٠١٢)</label><div class="note" style="width:100%;font-size:12px">النسخة العربية بتتولد من قالب الشركة الإنجليزي: العناوين الثابتة والشروط الافتراضية المعروفة بتتترجم، والتوقيع والاسم بيتاخدوا من حقول الشركة العربية (قوالب الشركات). أي شرط بتكتبه بإيدك بعربي بيطلع زي ما هو. الهيدر والفوتر والختم صور القالب زي ما هي. راجع الملف في Word قبل الإرسال.</div>`:''}`}
 
 /* ---- in-app update notice (hosted only): compares BUILD_ID with version.json on the site ---- */
-const BUILD_ID='202611261142';
+const BUILD_ID='202611261203';
 let UPD={shown:false,v:null};
 async function updCheck(){if(UPD.shown||BUILD_ID.indexOf('@@')===0||!synHosted())return;
  try{const r=await fetch('version.json?_='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();if(!j||!j.v||String(j.v)===BUILD_ID)return;UPD.shown=true;UPD.v=j.v;updShow(j)}catch(e){}}
@@ -1628,6 +1628,138 @@ function impCard(){if(typeof myRole==='function'&&myRole()!=='admin')return '';
  return `<div class="card"><h2>استيراد قالب من ملف Word (docx)</h2><p class="muted">ارفع ملف Word فيه شكل الشركة (الهيدر والختم والتوقيع وبيانات التواصل)، والبرنامج بيطلع منه الصور ونصوص الهيدر والفوتر ويحطها في قالب الشركة المختارة فوق. <b>اللي بيتستورد:</b> الصور ونصوص الهيدر/الفوتر بس، على هيكل القالب الحالي. <b>اللي مش بيتستورد:</b> ترتيب الصفحة والجدول نفسه (الهيكل بيفضل من قالب الأساس)، وبيانات الموقّع والاسم تكتبها في الحقول فوق. الصور الجديدة لازم تبقى بنفس النسبة تقريباً.</p>
  <div class="row"><label>نوع القالب<select id="impkind"><option value="tech">العرض الفني</option><option value="auth">التفويض</option></select></label><label class="b" style="cursor:pointer;flex-direction:row;justify-content:center">اختار ملف Word<input type="file" accept=".docx" style="display:none" onchange="tplImportRead(this)"></label></div>${inner}</div>`}
 const _tTpl2=tTpl;tTpl=function(){return _tTpl2()+impCard()};
+
+/* ================= v5m: blank company option (structure only, no copied names/images/terms) ================= */
+function blankImg(path){const type=/jpe?g$/i.test(path)?'image/jpeg':'image/png';const c=document.createElement('canvas');c.width=400;c.height=120;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);return new Promise(r=>c.toBlob(r,type,0.92))}
+cosEnsure=function(){if(!S||typeof PRDOCS==='undefined'||!PRDOCS||!PDEF.platform)return;(S.cos||[]).forEach(c=>{if(!PDEF[c.id]&&PDEF[c.base]&&PRDOCS[c.base]){const d=JSON.parse(JSON.stringify(PDEF[c.base]));d.label=c.label;d.custom=1;d.fields=Object.assign({},d.fields,{nameEn:c.label,fromName:c.label,signerEn:'',titleEn:'',companyAr:'',titleAr:'',signAr:''});if(c.blank)d.terms=d.terms.map(t=>[t[0],t[1],'',t[3]]);PDEF[c.id]=d;PRDOCS[c.id]=PRDOCS[c.base]}})};
+coAdd=async function(){const n=(document.getElementById('conm').value||'').trim(),b=document.getElementById('cobase').value;const blank=document.getElementById('coblank')&&document.getElementById('coblank').checked;
+ if(!n)return alert('اكتب اسم الشركة.');
+ if(Object.keys(PDEF).some(k=>PDEF[k].label.toLowerCase()===n.toLowerCase()))return alert('الاسم ده موجود.');
+ S.cos=S.cos||[];const id='co_'+uid();S.cos.push({id,label:n,base:b,blank:blank?1:0});cosEnsure();
+ if(blank){const o=pov(id);
+  for(const kind of ['tech','auth']){try{const z=await loadDocZip(id,kind);
+   for(const path of Object.keys(z.files).filter(x=>/^word\/media\/[^/]+\.(png|jpe?g)$/i.test(x))){const fid=uid();await putFile(fid,await blankImg(path));o.media[kind+':'+path]=fid}
+   for(const part of Object.keys(z.files).filter(x=>/^word\/(header|footer)\d*\.xml$/.test(x))){const xml=await z.file(part).async('string');let i=-1;for(const seg of paraSplit(xml)){if(!/^<w:p[ >]/.test(seg))continue;i++;if(isFieldP(seg))continue;if(ptxt(seg).trim())o.texts[kind+':'+part+':'+i]=''}}
+  }catch(e){}}
+ }
+ TPLSEL=id;save();render();
+ if(blank)setTimeout(()=>alert('اتعملت "'+n+'" فاضية: هيكل القالب بس، من غير أسماء ولا صور ولا شروط الشركة المنسوخة. ارفع ملف Word بتاع الشركة من كارت "استيراد قالب من ملف Word" في نفس الصفحة تحت، واملأ اسم الموقّع والوظيفة في الحقول فوق.'),300)};
+const _coCard0=coCard;coCard=function(){const h=_coCard0();return h.replace('<button class="b g" onclick="coAdd()">','<label style="flex-direction:row;align-items:center;gap:6px;width:auto;margin-top:4px"><input type="checkbox" id="coblank" style="width:auto"> شركة فاضية (الهيكل بس، من غير أسماء ولا صور ولا شروط الشركة المنسوخة — واملأها باستيراد ملف Word تحت)</label> <button class="b g" onclick="coAdd()">')};
+
+/* ================= v5n: combined quotation (عرض سعر شامل: فني + مالي) from an uploaded docx ================= */
+/* The uploaded file becomes the company's comb template: its items table is tokenized
+   (NO/DESC/UNIT/QTY/UP/TT/NOTES), cover anchors (client/inq/date/intro) and the terms
+   section become editable tokens. Only what is in the uploaded file is used. */
+function combSetCell(cell,tok){const ps=cell.match(/<w:p[ >][\s\S]*?<\/w:p>/g)||[];if(!ps.length)return cell;
+ if(tok==='@@DESC@@'){let c=cell.replace(ps[0],'@@DESC@@');for(let i=1;i<ps.length;i++)c=c.replace(ps[i],'');return c}
+ let ti=ps.findIndex(p=>/\d/.test(ptxt(p)));if(ti<0)ti=0;
+ let c=cell.replace(ps[ti],setParaXml(ps[ti],tok));for(let i=0;i<ps.length;i++)if(i!==ti&&!ptxt(ps[i]).trim())c=c.replace(ps[i],'');return c}
+function combColMap(h){const t=ptxt(h).replace(/\s+/g,' ').trim();
+ if(/اجمالي|إجمالي|total/i.test(t))return '@@TT@@';
+ if(/سعر الوحدة|unit\s*price|السعر/i.test(t))return '@@UP@@';
+ if(/^م$|^م\.|^no\.?$/i.test(t))return '@@NO@@';
+ if(/صنف|بيان|وصف|description/i.test(t))return '@@DESC@@';
+ if(/وحدة|unit/i.test(t))return '@@UNIT@@';
+ if(/كمية|qty|quantity/i.test(t))return '@@QTY@@';
+ if(/ملاحظ|notes?|remark/i.test(t))return '@@NOTES@@';
+ return ''}
+function combTok(doc){
+ const bi=doc.indexOf('<w:body>');if(bi<0)throw new Error('ملف Word غير مفهوم.');
+ const head=doc.slice(0,bi+8),body=doc.slice(bi+8);
+ const tbls=[...body.matchAll(/<w:tbl>[\s\S]*?<\/w:tbl>/g)];
+ let tbl=null,ti=-1;
+ for(const m of tbls){const rows=m[0].match(/<w:tr[ >][\s\S]*?<\/w:tr>/g)||[];if(rows.length<2)continue;const htxt=ptxt(rows[0]);if(/صنف|بيان|description|وصف/i.test(htxt)&&/سعر|price|كمية|qty/i.test(htxt)){tbl=m[0];ti=m.index;break}}
+ if(!tbl&&tbls.length){tbl=tbls[0][0];ti=tbls[0].index}
+ if(!tbl)throw new Error('ملقيتش جدول بنود في الملف.');
+ const pre=body.slice(0,ti),post=body.slice(ti+tbl.length);
+ const rows=tbl.match(/<w:tr[ >][\s\S]*?<\/w:tr>/g);const hdr=rows[0],item=rows[1];
+ const hcells=hdr.match(/<w:tc>[\s\S]*?<\/w:tc>/g),icells=item.match(/<w:tc>[\s\S]*?<\/w:tc>/g);
+ const map=hcells.map(combColMap);
+ let rowTpl=item;icells.forEach((c,i)=>{const tok=map[i]||'';rowTpl=rowTpl.replace(c,tok?combSetCell(c,tok):combSetCell(c,''))});
+ // linePara from the DESC cell
+ let linePara='';const di=map.indexOf('@@DESC@@');
+ if(di>=0){const ps=icells[di].match(/<w:p[ >][\s\S]*?<\/w:p>/g)||[];if(ps.length)linePara=setParaXml(ps[0],'@@LINE@@')}
+ if(!linePara)throw new Error('ملقيتش عمود الوصف/الصنف في الجدول.');
+ const tblHead=tbl.slice(0,tbl.indexOf(item));
+ // anchors in pre/post
+ const defs={};const found={cols:map.filter(Boolean)};
+ const proc=(part)=>{const segs=paraSplit(part);const out=[];let mode=null;
+  for(const s of segs){if(!/^<w:p[ >]/.test(s)){out.push(s);continue}
+   const t=ptxt(s).replace(/\s+/g,' ').trim();
+   if(/الشروط|الاحكام|الأحكام/.test(t)&&!/شاملة|ضريبة/.test(t)){mode='terms';out.push(s);continue}
+   if(mode==='terms'){if(/التوقيع|التاريخ|وتفضلوا|تحياتنا/.test(t)||!t){mode=null}
+    else{const k='T'+(Object.keys(defs).filter(x=>/^T\d+$/.test(x)).length+1);defs[k]=t;out.push(setParaXml(s,'@@'+k+'@@'));continue}}
+   if(/شركة/.test(t)&&t.length>30&&/خدمات|مشتريات|توريد|تجارية/.test(t)){defs.INTRO=t;found.intro=t.slice(0,40);out.push(setParaXml(s,'@@INTRO@@'));continue}
+   out.push(s)}
+  return out.join('')};
+ let pre2=proc(pre),post2=proc(post);
+ // client: after الساده/السادة paragraph, next non-empty paragraphs -> CLIENT then blanks (pre only)
+ {const segs=paraSplit(pre2);const out=[];let phase=0;
+  for(const s of segs){if(!/^<w:p[ >]/.test(s)){out.push(s);continue}
+   const t=ptxt(s).replace(/\s+/g,' ').trim();
+   if(phase===0&&/الساده|السادة|السيد|الأستاذ|الاستاذ/.test(t)){
+    const rest=t.replace(/^.*?(?:الساده|السادة|السيد|الأستاذ|الاستاذ)\s*[\/\:\-]?\s*/,'');
+    if(rest&&rest.length>1){found.client=rest;out.push(setParaXml(s,'الساده / @@CLIENT@@'));phase=2;continue}
+    phase=1;out.push(s);continue}
+   if(phase===1&&t){found.client=t;out.push(setParaXml(s,'@@CLIENT@@'));phase=2;continue}
+   if(phase===2&&t&&t.length<40&&!/م\s|الصنف/.test(t)){out.push(setParaXml(s,''));continue}
+   if(phase===2){phase=0}
+   out.push(s)}
+  pre2=out.join('')}
+ // inq no: paragraph after N.o / رقم -> INQ (pre)
+ {const segs=paraSplit(pre2);const out=[];let phase=0;
+  for(const s of segs){if(!/^<w:p[ >]/.test(s)){out.push(s);continue}
+   const t=ptxt(s).replace(/\s+/g,' ').trim();
+   if(phase===0&&(/^n\.?o\.?/i.test(t)||/^رقم/.test(t))&&t.length<30){const mm=t.match(/^(n\.?o\.?|رقم)\s*[:：]?\s*(\S.*)$/i);if(mm&&mm[2]){found.inq=mm[2];out.push(setParaXml(s,mm[1]+':@@INQ@@'));continue}phase=1;out.push(s);continue}
+   if(phase===1&&t&&!/@@CLIENT@@/.test(s)){found.inq=t;out.push(setParaXml(s,'@@INQ@@'));phase=0;continue}
+   out.push(s)}
+  pre2=out.join('')}
+ // date: paragraph containing تاريخ in post -> following numeric-ish paragraphs: first DATE, rest blank
+ {const segs=paraSplit(post2);const out=[];let phase=0;
+  for(const s of segs){if(!/^<w:p[ >]/.test(s)){out.push(s);continue}
+   const t=ptxt(s).replace(/\s+/g,' ').trim();
+   if(phase===0&&/^تاريخ/.test(t)){phase=1;out.push(s);continue}
+   if(phase===1&&t&&/^[\d\s\/\-.م]+$/.test(t)){found.date=(found.date||'')+t;out.push(setParaXml(s,found.date?'@@DATE@@':''));if(found.date)phase=2;continue}
+   if(phase===2&&t&&/^[\d\s\/\-.م]+$/.test(t)){out.push(setParaXml(s,''));continue}
+   if(phase&&t&&!/^[\d\s\/\-.م]+$/.test(t))phase=0;
+   out.push(s)}
+  post2=out.join('')}
+ return {head,pre:pre2,tblHead,rowTpl,linePara,tblTail:'</w:tbl>',post:post2,defs,found}}
+async function combImport(inp){const f=inp.files[0];if(!f)return;const pid=TPLSEL;try{
+ const z=await JSZip.loadAsync(f);if(!z.file('word/document.xml'))throw new Error('ده مش ملف Word (docx).');
+ const doc=await z.file('word/document.xml').async('string');
+ const tk=combTok(doc);
+ const fid=uid();await putFile(fid,f);
+ const o=pov(pid);o.comb={docxId:fid,tpl:{head:tk.head,pre:tk.pre,tblHead:tk.tblHead,rowTpl:tk.rowTpl,linePara:tk.linePara,tblTail:tk.tblTail,post:tk.post},defs:tk.defs};
+ save();render();
+ const cols=tk.found.cols.map(t=>t.replace(/@@|@/g,'')).join('، ');
+ alert('اتستورد قالب العرض الشامل لـ '+PDEF[pid].label+'.\nالأعمدة المتعرفة: '+cols+'.\n'+(tk.found.client?'العميل المتعرف: '+tk.found.client+'\n':'تحذير: متعرفش مكان اسم العميل — هيتكتب في أول سطر فاضي بعد "السادة".\n')+(tk.found.intro?'مقدمة الشركة: اتعرفت وبتتعدل تحت.\n':'مفيش مقدمة شركة اتعرفت.\n')+'الشروط: '+(Object.keys(tk.defs).filter(k=>/^T\d+$/.test(k)).length)+' سطر قابل للتعديل تحت.\nراجع بمعاينة من تبويب العرض المالي قبل أول إصدار.')}catch(e){alert('تعذر الاستيراد: '+e.message)}}
+function combCardF(){const pid=TPLSEL;const o=pov(pid);const c=o.comb;
+ let inner='';
+ if(c){const terms=Object.keys(c.defs).filter(k=>/^T\d+$/.test(k)).sort((a,b)=>+a.slice(1)-+b.slice(1));
+  inner=`<p class="muted">القالب مرفوع. عدّل المقدمة وسطور الشروط (بتتكتب في الملف زي ما هي).</p>
+  <label style="width:100%">مقدمة الشركة<textarea dir="auto" style="height:70px" oninput="pov('${pid}').comb.defs.INTRO=this.value;save()">${esc(c.defs.INTRO||'')}</textarea></label>
+  ${terms.map(k=>`<label style="width:100%">شرط ${k.slice(1)}<input dir="auto" value="${esc(c.defs[k])}" oninput="pov('${pid}').comb.defs['${k}']=this.value;save()"></label>`).join('')}
+  <div class="row" style="margin-top:6px"><label class="b o" style="cursor:pointer;flex-direction:row;justify-content:center">إعادة رفع الملف<input type="file" accept=".docx" style="display:none" onchange="combImport(this)"></label><button class="b r s" onclick="if(confirm('حذف قالب العرض الشامل؟')){delete pov('${pid}').comb;save();render()}">حذف القالب</button></div>`}
+ else inner=`<p class="muted">مفيش قالب شامل لـ ${esc(PDEF[pid].label)} لسه.</p><div class="row"><label class="b" style="cursor:pointer;flex-direction:row;justify-content:center">رفع ملف العرض الشامل (docx)<input type="file" accept=".docx" style="display:none" onchange="combImport(this)"></label></div>`;
+ return `<div class="card"><h2>قالب عرض سعر شامل (فني + مالي في ملف واحد)</h2><p class="muted">للشركات اللي بتقدم عرض واحد فيه البنود والأسعار مع بعض. ارفع ملف Word من عندك: البرنامج بياخد شكل الملف بس (الهيكل والهيدر والفوتر والصور بتاعت الملف نفسه)، وبيحوّل جدول البنود والعميل والرقم والتاريخ والشروط لحقول بتتملى من الطلب. الأسعار بتتجي من المورد المختار + هامش الربح في تبويب العرض المالي. <b>راجع بمعاينة قبل أول إصدار</b> — التعرف على أماكن الحقول تلقائي وممكن يحتاج تظبيط لو الملف مختلف عن المعتاد.</p>${inner}</div>`}
+const _tTpl3=tTpl;tTpl=function(){return _tTpl3()+combCardF()};
+/* ---- issuing ---- */
+async function buildComb(r){const pid=rpid(r);const c=(S.prof[pid]||{}).comb;if(!c)throw new Error('الشركة دي مفيهاش قالب عرض شامل. ارفعه من قوالب الشركات.');
+ const blob=await getFile(c.docxId);if(!blob)throw new Error('ملف القالب مش موجود على الجهاز ده. ارفعه تاني.');
+ const z=await JSZip.loadAsync(await blob.arrayBuffer());
+ const F=finTotals(r);const cur=r.finCur||S.baseCur;
+ const m={CLIENT:r.client,DATE:r.date,INQ:r.no,SUBJECT:r.subject,CNAME:pfield(pid,'companyAr')||pfield(pid,'nameEn'),INTRO:c.defs.INTRO||''};
+ Object.keys(c.defs).forEach(k=>{if(/^T\d+$/.test(k))m[k]=c.defs[k]});
+ const rows=r.items.map((it,k)=>{const up=F.rows[k]?F.rows[k].up:NaN,tt=F.rows[k]?F.rows[k].tt:NaN;
+  return c.tpl.rowTpl.replace('@@NO@@',()=>xe(it.no)).replace('@@QTY@@',()=>xe(it.qty)).replace('@@UNIT@@',()=>xe(it.unit||'')).replace('@@UP@@',()=>xe(f2(up))).replace('@@TT@@',()=>xe(f2(tt))).replace('@@NOTES@@','').replace('@@DESC@@',()=>String(it.tdesc!=null?it.tdesc:it.desc).split(/\r?\n/).filter(x=>x.trim()).map(l=>c.tpl.linePara.replace('@@LINE@@',()=>xe(l))).join(''))}).join('');
+ const xml=c.tpl.head+fillTok(c.tpl.pre,m)+c.tpl.tblHead+rows+c.tpl.tblTail+fillTok(c.tpl.post,m);
+ z.file('word/document.xml',xml);await applyOv(z,pid,'comb');
+ return z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'})}
+async function issueComb(){const r=R();if(!finCheck(r))return;try{dl(await buildComb(r),'Quotation - '+(r.no||'draft').replace(/[^\w\-]/g,'_')+'.docx');r.finAt=todayStr();save()}catch(e){alert(e.message)}}
+async function combPreview(){const e=document.getElementById('fpvbox');if(!e)return;if(!R().finSup){e.innerHTML='<div class="muted">اختار المورد الأول.</div>';return}e.innerHTML='<div class="muted">بيجهز المعاينة...</div>';try{const b=await buildComb(R());const box=document.createElement('div');await renderDoc(b,box);e.innerHTML='';e.appendChild(box)}catch(err){e.innerHTML='<div class="note">تعذرت المعاينة: '+esc(err.message)+'</div>'}}
+const _tFin0=tFin;tFin=function(){let h=_tFin0();const r=R();const c=r&&(S.prof[rpid(r)]||{}).comb;if(!c)return h;
+ return h.replace('<button class="b g" onclick="issueFin()">','<button class="b g" onclick="issueComb()">عرض شامل Word</button> <button class="b o" onclick="combPreview()">معاينة الشامل</button> <button class="b g" onclick="issueFin()">')};
 
 /* ---------- supplier finder ---------- */
 function mountSF(){const h=document.getElementById('sfhost');if(h.firstChild)return;const fr=document.createElement('iframe');fr.srcdoc=document.getElementById('sf-src').textContent.replace(/<\\\/script/g,'</script');h.appendChild(fr)}
