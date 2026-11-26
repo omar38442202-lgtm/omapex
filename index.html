@@ -884,7 +884,7 @@ async function buildFin(r){const pid=rpid(r);const tpl=addFinCols(PRDOCS[pid].te
  const rows=techItems(r).map((i,k)=>tpl.rowTpl.replace('@@NO@@',()=>xe(i.no)).replace('@@QTY@@',()=>xe(i.qty)).replace('@@UP@@',()=>xe(f2(F.rows[k].up))).replace('@@TT@@',()=>xe(f2(F.rows[k].tt))).replace('@@DESC@@',()=>(i.lines.length?i.lines:['']).map(l=>tpl.linePara.replace('@@LINE@@',()=>xe(l))).join(''))).join('');
  const totL=['Total: '+f2(F.tot)+' '+cur];
  if(F.vatMode==='add'){totL.push('VAT '+F.vatPc+'%: '+f2(F.vatAmt)+' '+cur);totL.push('Grand Total including VAT: '+f2(F.grand)+' '+cur)}
- totL.push(vatStatement(r));totL.push(shipLine(r,rLang(r)==='ar'));
+ totL.push(vatStatement(r));{const _sl=shipLine(r,rLang(r)==='ar');if(_sl)totL.push(_sl)}
  const totP=totL.map(l=>tpl.linePara.replace('@@LINE@@',()=>xe(l))).join('');
  const fixT=s=>s.replace(/Technical\s+Offer/gi,'Financial Offer');
  const xml=tpl.head+fixT(fillTok(tpl.pre,m))+tpl.tblHead+rows+tpl.tblTail+totP+fixT(fillTok(tpl.post,m));z.file('word/document.xml',arPost(r,xml));await applyOv(z,pid,'tech');
@@ -900,8 +900,8 @@ function tFin(){const r=R();const {res}=analyse(r);const F=finTotals(r);const pi
 <label>هامش الربح %<input style="width:90px" value="${esc(r.margin||'')}" oninput="R().margin=this.value;save()" onchange="render()"></label><label>العملة المكتوبة في العرض<input style="width:90px" value="${esc(r.finCur||S.baseCur)}" oninput="R().finCur=this.value;save()"></label>
 <label>ضريبة القيمة المضافة<select onchange="R().finVatMode=this.value;save();render()">${[['excl','غير شاملة (في الشروط بس)'],['add','تضاف على الإجمالي (زي هامش الربح)'],['incl','شاملة الضريبة']].map(o=>`<option value="${o[0]}" ${vatMode(r)===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select></label>
 <label>نسبة الضريبة %<input style="width:70px" value="${esc(vatPc(r))}" oninput="R().finVat=this.value;save()" onchange="render()"></label>
-<label>الشحن (Incoterm)<select onchange="R().incoterm=this.value;save();render()">${INCOT.map(x=>`<option value="${x[0]}" ${incot(r)===x[0]?'selected':''}>${x[0]} — ${esc(x[1])}</option>`).join('')}</select></label></div>
-<p class="muted" style="margin-top:4px">${esc(incotX(r)[0])}: ${esc(incotX(r)[3])} <details style="display:inline"><summary style="display:inline;cursor:pointer;color:var(--ac,#2a7)">كل الشروط وشرحها</summary><div style="direction:rtl;text-align:right;margin-top:6px">${INCOT.map(x=>`<div style="margin-bottom:4px"><b>${x[0]}</b> — ${esc(x[1])}: ${esc(x[3])}</div>`).join('')}</div></details></p>
+<label>الشحن (Incoterm)<select onchange="R().incoterm=this.value;save();render()">${INCOT.map(x=>`<option value="${x[0]}" ${incot(r)===x[0]?'selected':''}>${x[0]} — ${esc(x[1])}</option>`).join('')}<option value="NONE" ${r.incoterm==='NONE'?'selected':''}>بدون — من غير سطر شحن</option></select></label></div>
+<p class="muted" style="margin-top:4px">${r.incoterm==='NONE'?'بدون: مش هيتحط سطر شحن في العروض.':esc(incotX(r)[0])+': '+esc(incotX(r)[3])} <details style="display:inline"><summary style="display:inline;cursor:pointer;color:var(--ac,#2a7)">كل الشروط وشرحها</summary><div style="direction:rtl;text-align:right;margin-top:6px">${INCOT.map(x=>`<div style="margin-bottom:4px"><b>${x[0]}</b> — ${esc(x[1])}: ${esc(x[3])}</div>`).join('')}</div></details></p>
 <p class="muted">لو العرض بعملة غير عملة الأساس (${esc(S.baseCur)}) اكتب العملة الصحيحة هنا بعد ما تتأكد إن الأسعار محوّلة بسعر الصرف اللي في الإعدادات.</p>
 <div class="row">${langBox()}<button class="b g" onclick="issueFin()">تنزيل Word</button><button class="b" onclick="issueFinPdf()">PDF تقريبي (من المتصفح)</button><button class="b o" onclick="finPreview()">معاينة</button></div>
 <div class="scroll"><table style="margin-top:10px"><tr><th>م</th><th>الوصف</th><th>الكمية</th><th>تكلفة الوحدة</th><th>سعر البيع للوحدة (قابل للتعديل)</th><th>الإجمالي</th></tr>${r.items.map((it,i)=>{const c=F.x&&F.x.per[it.id];return `<tr><td style="width:70px"><input value="${esc(it.no)}" oninput="R().items[${i}].no=this.value;save()"></td><td>${esc(it.desc)}</td><td>${esc(it.qty)}</td><td>${c==null||isNaN(c)?'-':c.toFixed(2)}</td><td style="width:140px"><input value="${esc(((r.finP||{})[it.id]!=null)?r.finP[it.id]:(isNaN(F.rows[i].up)?'':F.rows[i].up.toFixed(2)))}" oninput="(R().finP=R().finP||{})['${it.id}']=this.value;save()" onchange="render()"></td><td>${f2(F.rows[i].tt)||'-'}</td></tr>`}).join('')}<tr><td colspan="5"><b>الإجمالي</b></td><td><b>${f2(F.tot)}</b></td></tr>${F.vatMode==='add'?`<tr><td colspan="5">ضريبة القيمة المضافة (${F.vatPc}%)</td><td>${f2(F.vatAmt)}</td></tr><tr><td colspan="5"><b>الإجمالي شامل الضريبة</b></td><td><b>${f2(F.grand)}</b></td></tr>`:''}</table></div>
@@ -1196,7 +1196,7 @@ async function synSync(){try{await synEnsure(true)}catch(e){return synMsg(e.mess
 function synSignOut(){if(SYN.tok&&window.google)try{google.accounts.oauth2.revoke(SYN.tok,()=>{})}catch(e){}SYN.tok=null;SYN.exp=0;synMsg('اتسجل خروج من جوجل.');synBadge();const e=document.getElementById('synstate');if(e)e.textContent=''}
 function synSetCid(v){const m=synMeta();synSetMeta({cid:String(v||'').trim(),dirty:m.base===0?true:m.dirty});synBadge()}
 function synInit(){const w=document.getElementById('who');if(w&&!document.getElementById('synbtn')){const b=document.createElement('button');b.id='synbtn';b.className='b o s';b.onclick=()=>{if(!synMeta().cid){const c=prompt('الصق الـClient ID بتاع جوجل (مرة واحدة على الجهاز ده). لو مش معاك اسأل المدير:');if(!c||!c.trim())return;synSetCid(c)}synSync()};w.insertAdjacentElement('afterend',b)}synBadge();try{SYN.snap=JSON.stringify(S)}catch(e){}setTimeout(synOpenPull,1500);window.addEventListener('beforeunload',e=>{if(synMeta().dirty&&synMeta().cid){e.preventDefault();e.returnValue=''}})}
-const syncInit=synInit;
+function syncInit(){return synInit()} /* live alias: wrappers (update check, bell, supabase) rebind synInit later */
 function synCard(){const m=synMeta();return `<div class="card"><h2>مزامنة جوجل درايف (فتح البرنامج من أي جهاز)</h2>
 <div class="note">البرنامج بيحفظ على درايف بتاعك في فولدر مخفي خاص بيه (drive.appdata): <b>نسخة مشفّرة بس</b>، وجوجل ملوش مفتاح فكها. بتتفك بكلمة سر البرنامج على جهازك. مفاتيح الـAPI وصور البطاقات <b>مش</b> بتتزامن (بتتكتب على كل جهاز).</div>
 <div class="row"><label>Client ID<input style="width:340px;direction:ltr" placeholder="123-abc.apps.googleusercontent.com" value="${esc(m.cid)}" onchange="synSetCid(this.value)"></label>
@@ -1495,7 +1495,7 @@ function arPost(r,xml){return rLang(r)==='ar'?arDoc(xml,!!r.arDigits):xml}
 function langBox(){const r=R();return `<label style="width:150px">لغة العرض<select onchange="R().lang=this.value;save();render()"><option value="en" ${rLang(r)==='en'?'selected':''}>English</option><option value="ar" ${rLang(r)==='ar'?'selected':''}>عربي</option></select></label>${rLang(r)==='ar'?`<label style="flex-direction:row;align-items:center;gap:6px;width:auto"><input type="checkbox" style="width:auto" ${r.arDigits?'checked':''} onchange="R().arDigits=this.checked;save();render()"> أرقام عربية (٠١٢)</label><div class="note" style="width:100%;font-size:12px">النسخة العربية بتتولد من قالب الشركة الإنجليزي: العناوين الثابتة والشروط الافتراضية المعروفة بتتترجم، والتوقيع والاسم بيتاخدوا من حقول الشركة العربية (قوالب الشركات). أي شرط بتكتبه بإيدك بعربي بيطلع زي ما هو. الهيدر والفوتر والختم صور القالب زي ما هي. راجع الملف في Word قبل الإرسال.</div>`:''}`}
 
 /* ---- in-app update notice (hosted only): compares BUILD_ID with version.json on the site ---- */
-const BUILD_ID='202611261615';
+const BUILD_ID='202611261632';
 let UPD={shown:false,v:null};
 async function updCheck(){if(UPD.shown||BUILD_ID.indexOf('@@')===0||!synHosted())return;
  try{const r=await fetch('version.json?_='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();if(!j||!j.v||String(j.v)===BUILD_ID)return;UPD.shown=true;UPD.v=j.v;updShow(j)}catch(e){}}
@@ -1507,7 +1507,8 @@ async function updGo(){const b=document.querySelector('#updbar .b.g');if(b){b.di
  try{if(window.caches){const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}}catch(e){}
  try{if(navigator.serviceWorker){const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.unregister()))}}catch(e){}
  location.replace(location.pathname+'?v='+encodeURIComponent(UPD.v||Date.now()))}
-const _synInit1=synInit;synInit=function(){_synInit1();setTimeout(updCheck,4000);setInterval(updCheck,30*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)updCheck()})};
+/* schedule at load, not inside synInit: the update check must run even before login/pack import */
+setTimeout(updCheck,4000);setInterval(updCheck,30*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)updCheck()});
 
 /* ---- extra issuing companies (admin): a new company starts as a copy of an existing company's templates ---- */
 function cosEnsure(){if(!S||typeof PRDOCS==='undefined'||!PRDOCS||!PDEF.platform)return;(S.cos||[]).forEach(c=>{if(!PDEF[c.id]&&PDEF[c.base]&&PRDOCS[c.base]){const d=JSON.parse(JSON.stringify(PDEF[c.base]));d.label=c.label;d.custom=1;d.fields=Object.assign({},d.fields,{nameEn:c.label,fromName:c.label,signerEn:'',titleEn:'',companyAr:'',titleAr:'',signAr:''});PDEF[c.id]=d;PRDOCS[c.id]=PRDOCS[c.base]}})}
@@ -1837,7 +1838,7 @@ async function buildComb(r){const pid=rpid(r);const c=(S.prof[pid]||{}).comb;if(
  const vlines=[];
  if(F.vatMode==='add'){vlines.push('الإجمالي: '+f2(F.tot)+' '+cur);vlines.push('ضريبة القيمة المضافة '+F.vatPc+' %: '+f2(F.vatAmt)+' '+cur);vlines.push('الإجمالي شامل الضريبة: '+f2(F.grand)+' '+cur)}
  if(!hasVat)vlines.push(vatStatementAr(r));
- if(!hasShip)vlines.push(shipLine(r,true));
+ if(!hasShip){const _sl=shipLine(r,true);if(_sl)vlines.push(_sl)}
  const vatP=vlines.map(l=>c.tpl.linePara.replace('@@LINE@@',()=>xe(l))).join('');
  const mig=combTplMigrate(c.tpl,r);
  const xml=c.tpl.head+fillTok(mig.pre,m)+c.tpl.tblHead+rows+c.tpl.tblTail+vatP+fillTok(mig.post,m);
@@ -1972,7 +1973,7 @@ async function buildUtpl(r,kind,u){const pid=rpid(r);
  const vlines=[];
  if(kind!=='tech'){vlines.push((ar?'الإجمالي: ':'Total: ')+f2(F.tot)+' '+cur);
   if(F.vatMode==='add'){vlines.push((ar?'ضريبة القيمة المضافة '+F.vatPc+' %: ':'VAT '+F.vatPc+'%: ')+f2(F.vatAmt)+' '+cur);vlines.push((ar?'الإجمالي شامل الضريبة: ':'Grand Total including VAT: ')+f2(F.grand)+' '+cur)}
-  if(!hasVat)vlines.push(ar?vatStatementAr(r):vatStatementEn(r));if(!hasShip)vlines.push(shipLine(r,ar))}
+  if(!hasVat)vlines.push(ar?vatStatementAr(r):vatStatementEn(r));if(!hasShip){const _sl=shipLine(r,ar);if(_sl)vlines.push(_sl)}}
  const vatP=vlines.map(l=>u.tpl.linePara.replace('@@LINE@@',()=>xe(l))).join('');
  const xml=u.tpl.head+fillTok(u.tpl.pre,m)+u.tpl.tblHead+rows+u.tpl.tblTail+vatP+fillTok(u.tpl.post,m);
  z.file('word/document.xml',xml);await applyRoles(z,pid,kind,1);
@@ -2033,7 +2034,7 @@ const INCOT=[
 ['DEQ','تسليم على الرصيف (شرط قديم)','Delivered Ex Quay (old term)','البائع بيوصّل البضاعة مفرّغة على رصيف ميناء الوصول، والجمارك والنقل الداخلي على المشتري. شرط قديم (إنكوتيرمز 2000)، البديل الحديث DPU.','Seller delivers the goods unloaded on the quay at the destination port; customs and inland transport on the buyer. Old Incoterms 2000 term, modern equivalent DPU.']];
 function incotX(r){const c=(r&&r.incoterm)||'EXW';return INCOT.find(x=>x[0]===c)||INCOT[0]}
 function incot(r){return incotX(r)[0]}
-function shipLine(r,ar){const x=incotX(r);return ar?('الشحن \u202A(Incoterm): '+x[0]+'\u202C — '+x[1]+'. '+x[3]):('Shipping (Incoterm): '+x[0]+' — '+x[2]+'. '+x[4])}
+function shipLine(r,ar){if(r&&r.incoterm==='NONE')return '';const x=incotX(r);return ar?('الشحن \u202A(Incoterm): '+x[0]+'\u202C — '+x[1]+'. '+x[3]):('Shipping (Incoterm): '+x[0]+' — '+x[2]+'. '+x[4])}
 /* PAYT: [code, labelAR, explainAR] */
 const PAYT=[
 ['advance','تحويل بنكي مقدم 100% (TT in advance)','الدفع كله قبل الشحن أو التسليم. أعلى أمان للمورد وأعلى مخاطرة عليك.'],
