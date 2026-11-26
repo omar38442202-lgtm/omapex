@@ -1495,7 +1495,7 @@ function arPost(r,xml){return rLang(r)==='ar'?arDoc(xml,!!r.arDigits):xml}
 function langBox(){const r=R();return `<label style="width:150px">لغة العرض<select onchange="R().lang=this.value;save();render()"><option value="en" ${rLang(r)==='en'?'selected':''}>English</option><option value="ar" ${rLang(r)==='ar'?'selected':''}>عربي</option></select></label>${rLang(r)==='ar'?`<label style="flex-direction:row;align-items:center;gap:6px;width:auto"><input type="checkbox" style="width:auto" ${r.arDigits?'checked':''} onchange="R().arDigits=this.checked;save();render()"> أرقام عربية (٠١٢)</label><div class="note" style="width:100%;font-size:12px">النسخة العربية بتتولد من قالب الشركة الإنجليزي: العناوين الثابتة والشروط الافتراضية المعروفة بتتترجم، والتوقيع والاسم بيتاخدوا من حقول الشركة العربية (قوالب الشركات). أي شرط بتكتبه بإيدك بعربي بيطلع زي ما هو. الهيدر والفوتر والختم صور القالب زي ما هي. راجع الملف في Word قبل الإرسال.</div>`:''}`}
 
 /* ---- in-app update notice (hosted only): compares BUILD_ID with version.json on the site ---- */
-const BUILD_ID='202611261545';
+const BUILD_ID='202611261615';
 let UPD={shown:false,v:null};
 async function updCheck(){if(UPD.shown||BUILD_ID.indexOf('@@')===0||!synHosted())return;
  try{const r=await fetch('version.json?_='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();if(!j||!j.v||String(j.v)===BUILD_ID)return;UPD.shown=true;UPD.v=j.v;updShow(j)}catch(e){}}
@@ -2033,7 +2033,7 @@ const INCOT=[
 ['DEQ','تسليم على الرصيف (شرط قديم)','Delivered Ex Quay (old term)','البائع بيوصّل البضاعة مفرّغة على رصيف ميناء الوصول، والجمارك والنقل الداخلي على المشتري. شرط قديم (إنكوتيرمز 2000)، البديل الحديث DPU.','Seller delivers the goods unloaded on the quay at the destination port; customs and inland transport on the buyer. Old Incoterms 2000 term, modern equivalent DPU.']];
 function incotX(r){const c=(r&&r.incoterm)||'EXW';return INCOT.find(x=>x[0]===c)||INCOT[0]}
 function incot(r){return incotX(r)[0]}
-function shipLine(r,ar){const x=incotX(r);return ar?('الشحن (Incoterm): '+x[0]+' — '+x[1]+'. '+x[3]):('Shipping (Incoterm): '+x[0]+' — '+x[2]+'. '+x[4])}
+function shipLine(r,ar){const x=incotX(r);return ar?('الشحن \u202A(Incoterm): '+x[0]+'\u202C — '+x[1]+'. '+x[3]):('Shipping (Incoterm): '+x[0]+' — '+x[2]+'. '+x[4])}
 /* PAYT: [code, labelAR, explainAR] */
 const PAYT=[
 ['advance','تحويل بنكي مقدم 100% (TT in advance)','الدفع كله قبل الشحن أو التسليم. أعلى أمان للمورد وأعلى مخاطرة عليك.'],
@@ -2103,6 +2103,108 @@ const _nfUpdShow=updShow;updShow=function(j){try{nfEnsure();if(j&&j.v&&!S.notifs
 /* ---- badge refresh with every render + periodic pull so other devices' notifications show up ---- */
 const _nfRender=render;render=function(){_nfRender();try{nfBadge()}catch(e){}};
 const _nfSynInit=synInit;synInit=function(){_nfSynInit();setInterval(()=>{if(!document.hidden)try{synOpenPull()}catch(e){}},5*60*1000)};
+
+/* ================= v5u: Supabase sync provider (realtime, beside Drive) =================
+ Same encrypted-store model as Drive sync: only ciphertext leaves the device.
+ Supabase holds: oma_kv row id='main' (the state, same payload shape as rfq_sync.json)
+                 oma_files rows id='f_<key>' (encrypted attachments, like Drive f_<id>)
+ The anon key + URL live in localStorage per device (like the Google Client ID) AND inside
+ the encrypted store (S.supa) so other devices adopt them automatically on next sync.
+ Modes (supaMeta().mode): 'both' (default: Supabase fast + Drive backup), 'supa', 'drive'.
+ Realtime uses supabase-js from jsdelivr; if the lib/CDN fails, falls back to 20s polling. */
+const SUPA_META='rfq_supa_meta_v1',SUPA_LIB='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+let SUPA={sb:null,chan:null,busy:false,msg:'',err:false,timer:null,poll:null,rt:false,lib:null,conflict:false};
+function supaMeta(){try{return Object.assign({url:'',key:'',mode:'both',base:0,dirty:false,last:0,on:false},JSON.parse(localStorage.getItem(SUPA_META)||'{}'))}catch(e){return {url:'',key:'',mode:'both',base:0,dirty:false,last:0,on:false}}}
+function supaSetMeta(o){localStorage.setItem(SUPA_META,JSON.stringify(Object.assign(supaMeta(),o)))}
+function supaOn(){const m=supaMeta();return m.on&&!!m.url&&!!m.key&&m.mode!=='drive'}
+function supaMsg(m,err){SUPA.msg=m;SUPA.err=!!err;const e=document.getElementById('supast');if(e){e.textContent=m;e.style.color=err?'#c62828':'#2e7d32'}}
+function supaRest(p){return supaMeta().url.replace(/\/+$/,'')+'/rest/v1/'+p}
+function supaHdr(x){const m=supaMeta();return Object.assign({apikey:m.key,Authorization:'Bearer '+m.key},x||{})}
+async function supaFetch(path,opt){opt=opt||{};let r;try{r=await fetch(supaRest(path),Object.assign({},opt,{headers:supaHdr(opt.headers)}))}catch(e){throw new Error('مفيش اتصال بـSupabase. ممكن الشبكة حاجباه أو مفيش نت.')}
+ if(r.status===401||r.status===403)throw new Error('Supabase رفض المفتاح (401/403). تأكد إنك نسخت anon public key صح.')
+ if(r.status===404)throw new Error('الجداول مش موجودة (404). الصق كود الإعداد من الدليل في SQL Editor الأول.')
+ if(!r.ok){let t='';try{t=(await r.json()).message||''}catch(e){}throw new Error('Supabase '+r.status+': '+t)}return r}
+async function supaHead(){const r=await supaFetch('oma_kv?id=eq.main&select=rev,ts,payload');const j=await r.json();return j&&j[0]||null}
+async function supaPutMain(rev,payload){await supaFetch('oma_kv',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},body:JSON.stringify({id:'main',rev,ts:new Date().toISOString(),payload})})}
+async function supaListFiles(){const r=await supaFetch('oma_files?select=id');return (await r.json()).map(x=>x.id)}
+async function supaGetFile(id){const r=await supaFetch('oma_files?id=eq.'+encodeURIComponent(id)+'&select=payload');const j=await r.json();return j&&j[0]&&j[0].payload}
+async function supaPutFile(id,payload){await supaFetch('oma_files',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},body:JSON.stringify({id,payload})})}
+/* ---- dirty hook: supa pushes ~1.5s after the last edit ---- */
+function supaDirty(){if(!supaOn())return;supaSetMeta({dirty:true});clearTimeout(SUPA.timer);SUPA.timer=setTimeout(()=>{supaPush(true)},1500)}
+/* ---- pull + apply (mirrors synPullApply, source = Supabase) ---- */
+async function supaApplyRow(row){if(!row||!row.payload)throw new Error('مفيش بيانات على Supabase لسه.');const j=row.payload;
+ if(DK){try{await decJson(j.data)}catch(e){throw new Error('مقدرتش أفك تشفير بيانات Supabase بمفتاح الجهاز ده.')}}
+ localStorage.setItem(UK,JSON.stringify(j.users));localStorage.setItem(EK,j.data);
+ const have=new Set(await idbKeys());for(const id of await supaListFiles()){if(!id.startsWith('f_'))continue;const k=id.slice(2);if(have.has(k))continue;const v=await supaGetFile(id);if(v)await idbSet(k,v)}
+ supaSetMeta({base:row.rev,dirty:false,last:Date.now()});
+ if(DK){S=await decJson(j.data);ensureS();supaAdoptKeys();render();SYN.snap=JSON.stringify(S);setTimeout(()=>{clearTimeout(SUPA.timer);supaSetMeta({base:row.rev,dirty:false})},800);supaMsg('اتنزّل من Supabase ✓ '+new Date().toLocaleTimeString('ar-EG'))}}
+async function supaPull(auto){const m=supaMeta();try{const row=await supaHead();if(!row){if(!auto)supaMsg('مفيش نسخة على Supabase لسه.');return false}
+ if(row.rev===m.base)return false;if(m.dirty&&!auto){if(!confirm('عندك تعديلات هنا لسه مترفعتش. التنزيل من Supabase هيستبدلها. تكمل؟'))return false}
+ if(m.dirty&&auto){SUPA.conflict=true;supaMsg('فيه نسخة أحدث على Supabase وعندك تعديلات هنا. دوس "مزامنة Supabase" تختار.',true);return false}
+ SUPA.busy=true;try{await supaApplyRow(row)}finally{SUPA.busy=false}return true}catch(e){supaMsg(e.message||String(e),true);return false}}
+/* ---- push (mirrors synPush conflict logic, source = Supabase) ---- */
+async function supaPush(auto){if(SUPA.busy||!supaOn()||!DK)return;if(auto&&!supaMeta().dirty)return;const snap0=JSON.stringify(S);SUPA.busy=true;supaMsg('بيرفع على Supabase...');
+ try{const row=await supaHead();const m=supaMeta();
+  if(row&&row.rev!==m.base&&m.dirty){if(auto){supaMsg('فيه تعديلات على جهاز تاني (Supabase). دوس "مزامنة Supabase" وانت تختار.',true);SUPA.conflict=true;return}
+   const keepLocal=confirm('فيه تعديلات على جهاز تاني (Supabase) وعندك تعديلات هنا كمان.\n\nOK = ارفع اللي عندي (يمسح تعديلات الجهاز التاني)\nCancel = تنزيل نسخة Supabase بدالها');
+   if(!keepLocal){if(confirm('تنزّل نسخة Supabase مكان اللي عندك؟ (تعديلاتك هنا هتتمسح)')){SUPA.conflict=false;await supaApplyRow(row)}return}SUPA.conflict=false}
+  else if(row&&row.rev!==m.base&&!m.dirty){await supaApplyRow(row);return}
+  const remote=new Set(await supaListFiles());let up=0;for(const k of await idbKeys()){const n='f_'+k;if(remote.has(n))continue;const v=await idbRaw(k);if(v&&v.enc){await supaPutFile(n,v);up++}}
+  const rev=(row?row.rev:0)+1;const payload={v:1,rev,ts:Date.now(),users:usersDb(),data:localStorage.getItem(EK)};
+  await supaPutMain(rev,payload);supaSetMeta({base:rev,dirty:false,last:Date.now()});SYN.snap=snap0;
+  supaMsg('اترفع على Supabase ✓ '+new Date().toLocaleTimeString('ar-EG')+(up?' ('+up+' ملف)':''))}catch(e){supaMsg(e.message||String(e),true)}finally{SUPA.busy=false}}
+async function supaSync(){if(!supaOn())return supaMsg('املأ الرابط والمفتاح وفعّل المزامنة الأول.',true);const m=supaMeta();try{const row=await supaHead();if(!row)return supaPush(false);if(row.rev>m.base&&!m.dirty)return supaPull(false);return supaPush(false)}catch(e){supaMsg(e.message,true)}}
+/* ---- realtime (supabase-js via CDN) with 20s polling fallback ---- */
+function supaLoadLib(){if(window.supabase&&window.supabase.createClient)return Promise.resolve();if(SUPA.lib)return SUPA.lib;
+ SUPA.lib=new Promise((res,rej)=>{const s=document.createElement('script');s.src=SUPA_LIB;s.onload=res;s.onerror=()=>rej(new Error('no-lib'));document.head.appendChild(s)});return SUPA.lib}
+function supaStartPoll(){if(SUPA.poll||!supaOn())return;SUPA.poll=setInterval(()=>{if(!document.hidden&&!SUPA.busy)supaPull(true)},20000)}
+async function supaSubscribe(){if(SUPA.chan||!supaOn())return;try{await supaLoadLib()}catch(e){supaStartPoll();return}
+ try{const m=supaMeta();SUPA.sb=window.supabase.createClient(m.url,m.key);
+  SUPA.chan=SUPA.sb.channel('oma-main').on('postgres_changes',{event:'*',schema:'public',table:'oma_kv',filter:'id=eq.main'},pl=>{try{const r=pl.new&&pl.new.rev;if(r!=null&&r!==supaMeta().base){if(!SUPA.busy)supaPull(true)}}catch(e){}})
+   .subscribe(st=>{if(st==='SUBSCRIBED'){SUPA.rt=true;if(SUPA.poll){clearInterval(SUPA.poll);SUPA.poll=null}}else if(st==='CHANNEL_ERROR'||st==='TIMED_OUT'||st==='CLOSED'){SUPA.rt=false;supaStartPoll()}})}catch(e){supaStartPoll()}}
+/* ---- adopt URL/key propagated inside the encrypted store ---- */
+function supaAdoptKeys(){try{if(S&&S.supa&&S.supa.url&&S.supa.key){const m=supaMeta();if(!m.url||!m.key){supaSetMeta({url:S.supa.url,key:S.supa.key,on:true});supaSubscribe()}}}catch(e){}}
+function supaSetCfg(url,key,on){url=String(url||'').trim();key=String(key||'').trim();supaSetMeta({url,key,on:!!on});
+ try{if(url&&key&&typeof S!=='undefined'&&S){S.supa={url,key};save()}}catch(e){}
+ if(on&&url&&key){supaSubscribe();supaPull(true)}}
+function supaSetMode(mode){supaSetMeta({mode});if(mode==='supa'){clearTimeout(SYN.timer)}if(mode!=='drive')supaSubscribe();render()}
+/* ---- connection test: table exists, write+read+delete probe, realtime check ---- */
+async function supaTest(){const say=t=>{SUPA.msg=t;SUPA.err=false;const e=document.getElementById('supast');if(e){e.textContent=t;e.style.color='#2e7d32'}};const t0=Date.now();
+ try{say('بيتصل...');const m=supaMeta();if(!m.url||!m.key)throw new Error('املأ الرابط والمفتاح الأول.');
+  await supaHead();
+  await supaFetch('oma_kv',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'},body:JSON.stringify({id:'probe',rev:0,payload:{probe:Date.now()}})});
+  const r=await supaFetch('oma_kv?id=eq.probe&select=rev');const j=await r.json();if(!j||!j[0])throw new Error('الكتابة تمت بس القراءة رجعت فاضي.');
+  await supaFetch('oma_kv?id=eq.probe',{method:'DELETE'});
+  let rt='polling';
+  try{await Promise.race([supaLoadLib(),new Promise((_,rej)=>setTimeout(rej,6000))]);rt='realtime جاهز'}catch(e){rt='المكتبة مش واصلة → هيزامن كل 20 ثانية (لسه أسرع من Drive)'}
+  say('تمام ✓ القراءة والكتابة شغالة ('+((Date.now()-t0)/1000).toFixed(1)+' ثانية) — '+rt)}catch(err){SUPA.msg=err.message||String(err);SUPA.err=true;const e=document.getElementById('supast');if(e){e.textContent=SUPA.msg;e.style.color='#c62828'}}}
+/* ---- new device (lock screen) ---- */
+async function supaNewDevice(){const lk=t=>{const e=document.getElementById('supalk');if(e)e.textContent=t};try{let m=supaMeta();
+ if(!m.url||!m.key){const u=prompt('الصق Project URL بتاع Supabase:');if(!u)return;const k=prompt('الصق anon public key:');if(!k)return;supaSetMeta({url:u.trim(),key:k.trim(),on:true});m=supaMeta()}
+ const db=usersDb();if(db&&db.users&&db.users.length&&!confirm('الجهاز ده فيه بيانات متسجلة. التنزيل من Supabase هيستبدلها. تكمل؟'))return;
+ lk('بيدور على نسخة...');const row=await supaHead();if(!row)return lk('مفيش نسخة على Supabase لسه.');
+ await supaApplyRow(row);lk('اتنزّلت ✓ سجّل دخول بكلمة سر البرنامج.')}catch(e){lk(e.message||String(e))}}
+/* ---- settings card ---- */
+function supaCard(){const m=supaMeta();return `<div class="card"><h2>مزامنة Supabase (لحظية بين الأجهزة والإشعارات)</h2>
+<div class="note">نفس فكرة درايف: <b>نسخة مشفّرة بس</b> بتطلع، بتتفك بكلمة سر البرنامج. Supabase (أو أي حد معاه المفتاح) مش يقدر يقرا البيانات. المفتاح المطلوب هو <b>anon public</b> بس — متبعتش أبداً service-role لحد. خطوات الإعداد في الدليل.</div>
+<div class="row"><label>Project URL<input style="width:280px;direction:ltr" placeholder="https://abcdefgh.supabase.co" value="${esc(m.url)}" onchange="supaSetCfg(this.value,supaMeta().key,supaMeta().on)"></label>
+<label>anon public key<input type="password" style="width:280px;direction:ltr" value="${esc(m.key)}" onchange="supaSetCfg(supaMeta().url,this.value,supaMeta().on)"></label></div>
+<div class="row"><label>طريقة المزامنة<select onchange="supaSetMode(this.value)">
+<option value="both"${m.mode==='both'?' selected':''}>Supabase + درايف احتياطي (مقترح)</option>
+<option value="supa"${m.mode==='supa'?' selected':''}>Supabase بس</option>
+<option value="drive"${m.mode==='drive'?' selected':''}>درايف بس</option></select></label>
+<button class="b" onclick="supaSetCfg(supaMeta().url,supaMeta().key,true);supaSync()">${m.on?'مزامنة Supabase الآن':'تفعيل ومزامنة'}</button>
+<button class="b o" onclick="supaTest()">اختبار الاتصال</button>
+<button class="b o" onclick="supaPull(false)">نزّل</button>
+<button class="b o" onclick="supaPush(false)">ارفع</button></div>
+<p id="supast" class="muted">${esc(SUPA.msg||'')}</p>
+<p class="muted">آخر مزامنة Supabase: ${m.last?new Date(m.last).toLocaleString('ar-EG'):'لسه'} ${m.dirty?'| فيه تعديلات متترفعتش':''} ${SUPA.rt?'| لحظي ⚡':'| سحب كل 20 ثانية'}. الإشعارات بتوصل فوراً للأجهزة المفتوحة لما Supabase شغال.</p></div>`}
+/* ---- wiring ---- */
+const _supaSyncDirty=syncDirty;syncDirty=function(){_supaSyncDirty();if(supaOn()){supaDirty();if(supaMeta().mode==='supa')clearTimeout(SYN.timer)}};
+const _supaSynCard=synCard;synCard=function(){return _supaSynCard()+supaCard()};
+const _supaLockLink=syncLockLink;syncLockLink=function(inner){const base=_supaLockLink(inner);if(inner.indexOf('id="lu"')<0)return base;
+ return base+`<div style="margin-top:8px"><a href="#" onclick="supaNewDevice();return false" style="font-size:13px">⚡ جهاز جديد؟ هات بياناتي من Supabase</a><div id="supalk" class="muted" style="font-size:12px"></div></div>`};
+const _supaSynInit=synInit;synInit=function(){_supaSynInit();setTimeout(()=>{supaAdoptKeys();if(supaOn()){supaPull(true);supaSubscribe()}else supaStartPoll()},2500)};
 
 /* ---------- supplier finder ---------- */
 function mountSF(){const h=document.getElementById('sfhost');if(h.firstChild)return;const fr=document.createElement('iframe');fr.srcdoc=document.getElementById('sf-src').textContent.replace(/<\\\/script/g,'</script');h.appendChild(fr)}
