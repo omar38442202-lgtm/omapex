@@ -22,7 +22,7 @@ th{background:#e6edf5;font-size:12px}td input,td textarea{width:100%;min-height:
 .best{background:#d7f3dc!important;font-weight:bold}.bad{background:#fde0e0}.warn{background:#fff3cd}
 .tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;color:#fff}
 .t-ok{background:#2e7d32}.t-no{background:#c62828}.t-pend{background:#b8860b}
-.muted{color:#777;font-size:12px}.note{background:#fff3cd;border:1px solid #e6cf7a;padding:8px;border-radius:6px;margin:8px 0;font-size:13px}
+.muted{color:#777;font-size:12px}.note{background:#fff3cd;color:#3d3000;border:1px solid #e6cf7a;padding:8px;border-radius:6px;margin:8px 0;font-size:13px}
 .scroll{overflow:auto}.cm{margin:6px 0;padding:8px 10px;border-radius:8px;max-width:92%;font-size:13px;line-height:1.5}.cm.user{background:#d9e8f7;margin-right:0;margin-left:auto}.cm.assistant{background:#fff;border:1px solid #dde}
 .pg{background:#fff;width:640px;min-height:430px;margin:10px auto;padding:30px;box-shadow:0 1px 6px #0004;direction:ltr;font-family:'Times New Roman',serif;position:relative}
 .pg .hd{direction:rtl;text-align:right;color:#2f5496;font-weight:bold;font-family:Tahoma;font-size:13px;border-bottom:1px solid #2f5496;padding-bottom:6px;margin-bottom:20px}
@@ -55,7 +55,7 @@ body.dark{background:#10151d!important;color:#dfe6ef}body.dark.bg-blue{backgroun
 body.dark .card,body.dark table,body.dark td,body.dark th{background:#18202c;color:#dfe6ef;border-color:#2c3748}body.dark th{background:#222d3d}body.dark .card h2{color:#8ec1f3}
 body.dark input,body.dark select,body.dark textarea{background:#101722;color:#dfe6ef;border-color:#33425a}body.dark label{color:#a9b6c8}body.dark .muted{color:#93a0b3}
 body.dark nav{background:#0b1018}body.dark nav button.on{background:#10151d;color:#8ec1f3}body.dark header{background:#14304d}
-body.dark .note{background:#3b3315;border-color:#6b5b1d;color:#f1e3a8}body.dark .best{background:#1c4a2a!important}body.dark .bad{background:#4a1f1f}body.dark .warn{background:#4a3f12}
+body.dark .note{background:#3b3315!important;border-color:#8a7424;color:#fff4c2!important}body.dark .note *{color:inherit}body.dark .note a{color:#ffd966}body.dark .note .b.s{color:#fff4c2;border-color:#8a7424}body.dark .best{background:#1c4a2a!important}body.dark .bad{background:#4a1f1f}body.dark .warn{background:#4a3f12}
 body.dark #chatp,body.dark #chatm{background:#161d29;color:#dfe6ef}body.dark .cm.assistant{background:#202a3a;border-color:#33425a}body.dark .cm.user{background:#1e3a5f}body.dark #chatp .ci,body.dark #chatp .cq{border-color:#2c3748}body.dark .hi{background:#18202c;border-color:#2c3748}body.dark .act{background:#1b2440;border-color:#3b4a80}
 @media(max-width:700px){header{padding:8px 10px;gap:8px}header h1{font-size:15px;width:100%}header label{flex:1 1 100%;min-width:0}header select{min-width:0;width:100%}nav{overflow-x:auto;flex-wrap:nowrap;padding:0 4px;-webkit-overflow-scrolling:touch}nav button{padding:10px 12px;white-space:nowrap;font-size:13px}main,#sfhost{padding:8px!important}.card{padding:10px}.row>label,.row label[style*="width"]{width:100%!important}.row{gap:8px}.scroll{overflow-x:auto}table{font-size:12px}input,select,textarea{font-size:16px!important}.row .b{flex:1}#chatb span{display:none}#chatb{padding:14px}.pvbox{padding:4px}}
 /* edit 20: round bubble */
@@ -619,7 +619,7 @@ async function encJson(o){return JSON.stringify(await aesEnc(DK,te.encode(JSON.s
 async function decJson(s){return JSON.parse(td.decode(await aesDec(DK,JSON.parse(s))))}
 let _sv=null,_busy=Promise.resolve();
 function save(){if(!DK)return;const e=document.getElementById('saved');if(e)e.textContent='بيحفظ...';clearTimeout(_sv);_sv=setTimeout(flush,150)}
-function flush(){clearTimeout(_sv);if(!DK)return _busy;_busy=_busy.then(async()=>{try{localStorage.setItem(EK,await encJson(S));if(typeof syncDirty==='function')syncDirty();if(LLC)localStorage.setItem(EKL,await encJson(LLC));const e=document.getElementById('saved');if(e)e.textContent='اتحفظ (مشفّر) ✓'}catch(err){const e=document.getElementById('saved');if(e)e.textContent='تعذر الحفظ - اعمل نسخة احتياطية'}});return _busy}
+function flush(){clearTimeout(_sv);if(!DK)return _busy;_busy=_busy.then(async()=>{try{localStorage.setItem(EK,await encJson(S));if(typeof syncDirtyState==='function')syncDirtyState();if(LLC)localStorage.setItem(EKL,await encJson(LLC));const e=document.getElementById('saved');if(e)e.textContent='اتحفظ (مشفّر) ✓'}catch(err){const e=document.getElementById('saved');if(e)e.textContent='تعذر الحفظ - اعمل نسخة احتياطية'}});return _busy}
 document.addEventListener('visibilitychange',()=>{if(document.hidden)flush()});window.addEventListener('pagehide',()=>flush());
 /* attachments: encrypted in IndexedDB */
 async function putFile(id,blob){const db=await idbp;let rec=blob;if(DK){const buf=new Uint8Array(await blob.arrayBuffer());rec={enc:1,type:blob.type||'',...await aesEnc(DK,buf)}}return new Promise((res,rej)=>{const tx=db.transaction('f','readwrite');tx.objectStore('f').put(rec,id);tx.oncomplete=()=>{if(typeof syncDirty==='function')syncDirty();res()};tx.onerror=()=>rej(tx.error)})}
@@ -663,13 +663,13 @@ async function afterUnlock(){let raw=localStorage.getItem(EK);let s=null;if(raw)
 async function enterApp(){if(typeof privGate==='function')await privGate();const e=document.getElementById('lock');if(e)e.remove();if(!S.cur&&S.rfqs[0])S.cur=S.rfqs[0].id;document.getElementById('who').textContent='👤 '+ME.name;document.body.classList.add('in');render();chatMount();if(typeof syncInit==='function')syncInit();setTimeout(mountSF,400);save()}
 async function lockNow(){await flush();location.reload()}
 function boot(){if(!window.crypto||!crypto.subtle){document.body.innerHTML='<div style="padding:30px;font-size:18px">المتصفح ده مش بيدعم التشفير (WebCrypto). افتح البرنامج من Chrome أو Firefox حديث.</div>';return}
- const db=usersDb();if(db&&db.users&&db.users.length)showLogin();else showSetup(!!localStorage.getItem(LEGACY_S))}
+ const db=usersDb();if(db&&db.users&&db.users.length)showLogin();else if(typeof showFirstRun==='function'&&!localStorage.getItem(LEGACY_S)&&!sessionStorage.getItem('om_first_skip')&&typeof synHosted==='function'&&synHosted())showFirstRun();else showSetup(!!localStorage.getItem(LEGACY_S))}
 /* --- users management UI (settings) --- */
 function usersCard(){if(!ME)return '';const db=usersDb();const adm=ME.role==='admin';
  return `<div class="card"><h2>المستخدمين والأمان</h2><p class="muted">كل المستخدمين بيشوفوا نفس بيانات الشركة (طلبات وعروض). الدخول بيتطلب اسم وكلمة سر، وكل البيانات والمفاتيح مشفرة على الجهاز. أنت داخل كـ <b>${esc(ME.name)}</b> (${ROLE_NAME[ME.role]||'مستخدم'}).</p>
 <table><tr><th>المستخدم</th><th>الصلاحية</th><th></th></tr>${db.users.map(u=>`<tr><td>${esc(u.name)}</td><td>${adm&&u.name!==ME.name?`<select onchange="uiRole(${JSON.stringify(u.name).replace(/"/g,'&quot;')},this.value)">${Object.keys(ROLE_NAME).map(k=>`<option value="${k}" ${u.role===k?'selected':''}>${ROLE_NAME[k]}</option>`).join('')}</select>`:esc(ROLE_NAME[u.role]||'مستخدم')}</td><td>${adm||u.name===ME.name?`<button class="b s o" onclick="uiReset(${JSON.stringify(u.name).replace(/"/g,'&quot;')})">تغيير/Reset كلمة السر</button>`:''} ${adm&&u.name!==ME.name?`<button class="b s r" onclick="uiDel(${JSON.stringify(u.name).replace(/"/g,'&quot;')})">حذف</button>`:''}</td></tr>`).join('')}</table>
 ${adm?`<div class="row" style="margin-top:8px"><label>مستخدم جديد<input id="nu"></label><label>كلمة سر مؤقتة<input id="np" type="text"></label><label>الصلاحية<select id="nr">${Object.keys(ROLE_NAME).map(k=>`<option value="${k}">${ROLE_NAME[k]}</option>`).join('')}</select></label><button class="b g" onclick="uiAdd()">إضافة</button></div>
-<div class="note" style="background:#fff3cd;margin-top:8px">${ROLE_WARN}</div><div class="row" style="margin-top:8px"><button class="b o" onclick="uiNewRec()">توليد كود استرجاع جديد (بيلغي القديم)</button></div>`:''}
+<div class="note" style="margin-top:8px">${ROLE_WARN}</div><div class="row" style="margin-top:8px"><button class="b o" onclick="uiNewRec()">توليد كود استرجاع جديد (بيلغي القديم)</button></div>`:''}
 <div class="row" style="margin-top:8px"><button class="b r" onclick="lockNow()">🔒 قفل البرنامج</button></div>${HONEST}</div>`}
 async function uiAdd(){try{await secAddUser(nu.value,np.value,nr.value);render()}catch(e){alert(e.message)}}
 async function uiReset(n){const p=prompt('كلمة السر الجديدة لـ '+n+' (6 حروف على الأقل):');if(!p)return;try{await secSetPass(n,p);alert('اتغيرت.')}catch(e){alert(e.message)}}
@@ -802,12 +802,12 @@ async function applyOv(z,pid,kind){const o=(S.prof[pid]||{});
  const texts=o.texts||{};const byPart={};for(const key of Object.keys(texts)){const m=key.match(/^(\w+):(.+):(\d+)$/);if(m&&m[1]===kind){(byPart[m[2]]=byPart[m[2]]||{})[+m[3]]=texts[key]}}
  for(const part of Object.keys(byPart)){if(!z.file(part))continue;let xml=await z.file(part).async('string');let i=-1;xml=paraSplit(xml).map(seg=>{if(/^<w:p[ >]/.test(seg)){i++;if(byPart[part][i]!=null)return setParaXml(seg,byPart[part][i])}return seg}).join('');z.file(part,xml)}}
 async function buildTech(r){const pid=rpid(r);const tpl=PRDOCS[pid].tech.tpl;const z=await loadDocZip(pid,'tech');
- const m={SUBJECT:r.subject,CLIENT:r.client,CLIENT2:r.clientShort?'“'+r.clientShort+'”':'',DATE:r.date,INQ:r.no,FROMNAME:pfield(pid,'fromName')||pfield(pid,'nameEn'),SIGNER:pfield(pid,'signerEn'),TITLE:pfield(pid,'titleEn')};
+ const m={SUBJECT:r.subject,CLIENT:r.client,CLIENT2:r.clientShort?'“'+r.clientShort+'”':'',DATE:r.date,INQ:r.no,FROMNAME:(rLang(r)==='ar'&&pfield(pid,'companyAr'))||pfield(pid,'fromName')||pfield(pid,'nameEn'),SIGNER:(rLang(r)==='ar'&&pfield(pid,'signAr'))||pfield(pid,'signerEn'),TITLE:(rLang(r)==='ar'&&pfield(pid,'titleAr'))||pfield(pid,'titleEn')};
  PDEF[pid].terms.forEach(t=>{m[t[3]]=T(t[0])});
  const rows=techItems(r).map(i=>tpl.rowTpl.replace('@@NO@@',()=>xe(i.no)).replace('@@QTY@@',()=>xe(i.qty)).replace('@@DESC@@',()=>(i.lines.length?i.lines:['']).map(l=>tpl.linePara.replace('@@LINE@@',()=>xe(l))).join(''))).join('');
- const xml=tpl.head+fillTok(tpl.pre,m)+tpl.tblHead+rows+tpl.tblTail+fillTok(tpl.post,m);z.file('word/document.xml',xml);await applyOv(z,pid,'tech');
+ const xml=tpl.head+fillTok(tpl.pre,m)+tpl.tblHead+rows+tpl.tblTail+fillTok(tpl.post,m);z.file('word/document.xml',arPost(r,xml));await applyOv(z,pid,'tech');
  return z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'})}
-const techName=r=>'Technical offer - '+(r.no||'draft').replace(/[^\w\-]/g,'_');
+const techName=r=>'Technical offer'+(rLang(r)==='ar'?' AR':'')+' - '+(r.no||'draft').replace(/[^\w\-]/g,'_');
 function techCheck(r){const miss=[];if(!r.no)miss.push('رقم الاستفسار');if(!r.client)miss.push('العميل');if(!r.items.length)miss.push('البنود');return !miss.length||confirm('ناقص: '+miss.join('، ')+'. تكمل؟')}
 async function issueTech(){const r=R();if(!techCheck(r))return;dl(await buildTech(r),techName(r)+'.docx');r.techAt=todayStr();save()}
 async function issueTechPdf(){const r=R();if(!techCheck(r))return;await printDoc(await buildTech(r),techName(r))}
@@ -823,7 +823,7 @@ async function techPreview(){const e=document.getElementById('pvbox');if(!e)retu
 function techItems(r){return r.items.map(it=>({no:it.no,lines:String(it.tdesc!=null?it.tdesc:it.desc).split(/\r?\n/).filter(x=>x.trim()),qty:it.qty}))}
 function tf(k,label,w,ta){return `<label style="width:${w}">${label}<${ta?'textarea':'input'} dir="ltr" ${ta?'':'value="'+esc(T(k))+'"'} oninput="R().tech.${k}=this.value;save()">${ta?esc(T(k)):''}</${ta?'textarea':'input'}></label>`}
 function compSel(onchange,val){return `<label style="width:230px">الشركة (الهيدر والختم والموقّع)<select onchange="${onchange}">${PIDS().map(p=>`<option value="${p}" ${val===p?'selected':''}>${PDEF[p].label}</option>`).join('')}</select></label>`}
-function tTech(){const r=R();const pid=rpid(r);return `<div class="card"><h2>إصدار العرض الفني</h2><div class="row">${compSel("R().company=this.value;if(R().tech)R().tech={prices:null,validity:null,payment:null,delivery:null,signer:null};save();render()",pid)}
+function tTech(){const r=R();const pid=rpid(r);return `<div class="card"><h2>إصدار العرض الفني</h2><div class="row">${compSel("R().company=this.value;if(R().tech)R().tech={prices:null,validity:null,payment:null,delivery:null,signer:null};save();render()",pid)}${langBox()}
 <button class="b g" onclick="issueTech()">تنزيل Word</button><button class="b" onclick="issueTechPdf()">PDF تقريبي (من المتصفح)</button><button class="b o" onclick="techPreview()">تحديث المعاينة</button></div>
 <p class="muted">بيطلع ملف docx بنفس قالب الشركة المختارة (الهيدر والفوتر والختم والتوقيع). <b>للـPDF الرسمي:</b> نزّل الـWord وافتحه في Microsoft Word واعمل Save as PDF (ده الأدق 100%). زرار "PDF تقريبي" بيطبع معاينة من المتصفح (نافذة الطباعة > Save as PDF) والترتيب فيه بيختلف عن الـWord (اتجاه العربي/الإنجليزي، الهيدر، ترتيب الأعمدة): استخدمه للمراجعة السريعة بس، ومتبعتوش للعميل من غير ما تراجعه. تعديل القالب نفسه (الختم، الهيدر، الموقّع) من تبويب "قوالب الشركات".</p>
 <div class="note">بيانات الغلاف (العميل والتاريخ والرقم والموضوع) من تبويب طلبات التسعير. الشروط تحت افتراضية من قالب الشركة وتقدر تعدلها للطلب ده أو للكل من "قوالب الشركات".</div>
@@ -869,14 +869,14 @@ function finPrice(r,it,x){const o=(r.finP||{})[it.id];if(o!=null&&o!=='')return 
 const f2=n=>isNaN(n)?'':n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 function finTotals(r){const {res}=analyse(r);const x=res.find(y=>y.q.id===r.finSup);let tot=0,miss=0;const rows=r.items.map(it=>{const up=finPrice(r,it,x);if(isNaN(up))miss++;else tot+=up*it.qty;return {up,tt:isNaN(up)?NaN:up*it.qty}});return {rows,tot,miss,x}}
 async function buildFin(r){const pid=rpid(r);const tpl=addFinCols(PRDOCS[pid].tech.tpl);const z=await loadDocZip(pid,'tech');const F=finTotals(r);
- const m={SUBJECT:r.subject,CLIENT:r.client,CLIENT2:r.clientShort?'“'+r.clientShort+'”':'',DATE:r.date,INQ:r.no,FROMNAME:pfield(pid,'fromName')||pfield(pid,'nameEn'),SIGNER:pfield(pid,'signerEn'),TITLE:pfield(pid,'titleEn')};
+ const m={SUBJECT:r.subject,CLIENT:r.client,CLIENT2:r.clientShort?'“'+r.clientShort+'”':'',DATE:r.date,INQ:r.no,FROMNAME:(rLang(r)==='ar'&&pfield(pid,'companyAr'))||pfield(pid,'fromName')||pfield(pid,'nameEn'),SIGNER:(rLang(r)==='ar'&&pfield(pid,'signAr'))||pfield(pid,'signerEn'),TITLE:(rLang(r)==='ar'&&pfield(pid,'titleAr'))||pfield(pid,'titleEn')};
  PDEF[pid].terms.forEach(t=>{m[t[3]]=T(t[0])});const cur=r.finCur||S.baseCur;
  const rows=techItems(r).map((i,k)=>tpl.rowTpl.replace('@@NO@@',()=>xe(i.no)).replace('@@QTY@@',()=>xe(i.qty)).replace('@@UP@@',()=>xe(f2(F.rows[k].up))).replace('@@TT@@',()=>xe(f2(F.rows[k].tt))).replace('@@DESC@@',()=>(i.lines.length?i.lines:['']).map(l=>tpl.linePara.replace('@@LINE@@',()=>xe(l))).join(''))).join('');
  const totP=tpl.linePara.replace('@@LINE@@',()=>xe('Total: '+f2(F.tot)+' '+cur));
  const fixT=s=>s.replace(/Technical\s+Offer/gi,'Financial Offer');
- const xml=tpl.head+fixT(fillTok(tpl.pre,m))+tpl.tblHead+rows+tpl.tblTail+totP+fixT(fillTok(tpl.post,m));z.file('word/document.xml',xml);await applyOv(z,pid,'tech');
+ const xml=tpl.head+fixT(fillTok(tpl.pre,m))+tpl.tblHead+rows+tpl.tblTail+totP+fixT(fillTok(tpl.post,m));z.file('word/document.xml',arPost(r,xml));await applyOv(z,pid,'tech');
  return z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'})}
-const finName=r=>'Financial offer - '+(r.no||'draft').replace(/[^\w\-]/g,'_');
+const finName=r=>'Financial offer'+(rLang(r)==='ar'?' AR':'')+' - '+(r.no||'draft').replace(/[^\w\-]/g,'_');
 function finCheck(r){const F=finTotals(r);if(!r.finSup)return alert('اختار المورد المختار الأول.'),false;if(F.miss&&!confirm(F.miss+' بند من غير سعر. تكمل؟'))return false;return techCheck(r)}
 async function issueFin(){const r=R();if(!finCheck(r))return;dl(await buildFin(r),finName(r)+'.docx');r.finAt=todayStr();save()}
 async function issueFinPdf(){const r=R();if(!finCheck(r))return;await printDoc(await buildFin(r),finName(r))}
@@ -886,7 +886,7 @@ function tFin(){const r=R();const {res}=analyse(r);const F=finTotals(r);const pi
 <div class="row">${compSel("R().company=this.value;save();render()",pid)}<label>المورد المختار<select onchange="R().finSup=this.value;save();render()"><option value="">اختر</option>${res.map(x=>`<option value="${x.q.id}" ${r.finSup===x.q.id?'selected':''}>${esc(x.q.supplier)}</option>`).join('')}</select></label>
 <label>هامش الربح %<input style="width:90px" value="${esc(r.margin||'')}" oninput="R().margin=this.value;save()" onchange="render()"></label><label>العملة المكتوبة في العرض<input style="width:90px" value="${esc(r.finCur||S.baseCur)}" oninput="R().finCur=this.value;save()"></label></div>
 <p class="muted">لو العرض بعملة غير عملة الأساس (${esc(S.baseCur)}) اكتب العملة الصحيحة هنا بعد ما تتأكد إن الأسعار محوّلة بسعر الصرف اللي في الإعدادات.</p>
-<div class="row"><button class="b g" onclick="issueFin()">تنزيل Word</button><button class="b" onclick="issueFinPdf()">PDF تقريبي (من المتصفح)</button><button class="b o" onclick="finPreview()">معاينة</button></div>
+<div class="row">${langBox()}<button class="b g" onclick="issueFin()">تنزيل Word</button><button class="b" onclick="issueFinPdf()">PDF تقريبي (من المتصفح)</button><button class="b o" onclick="finPreview()">معاينة</button></div>
 <div class="scroll"><table style="margin-top:10px"><tr><th>م</th><th>الوصف</th><th>الكمية</th><th>تكلفة الوحدة</th><th>سعر البيع للوحدة (قابل للتعديل)</th><th>الإجمالي</th></tr>${r.items.map((it,i)=>{const c=F.x&&F.x.per[it.id];return `<tr><td style="width:70px"><input value="${esc(it.no)}" oninput="R().items[${i}].no=this.value;save()"></td><td>${esc(it.desc)}</td><td>${esc(it.qty)}</td><td>${c==null||isNaN(c)?'-':c.toFixed(2)}</td><td style="width:140px"><input value="${esc(((r.finP||{})[it.id]!=null)?r.finP[it.id]:(isNaN(F.rows[i].up)?'':F.rows[i].up.toFixed(2)))}" oninput="(R().finP=R().finP||{})['${it.id}']=this.value;save()" onchange="render()"></td><td>${f2(F.rows[i].tt)||'-'}</td></tr>`}).join('')}<tr><td colspan="5"><b>الإجمالي</b></td><td><b>${f2(F.tot)}</b></td></tr></table></div>
 <p class="muted">التكلفة لا تشمل شحن أو جمارك أو أي مصاريف غير مذكورة في عرض المورد. راجع الأرقام قبل ما تبعت.</p></div>
 <div class="card"><h2>معاينة</h2><div id="fpvbox" class="pvbox"><div class="muted">دوس "معاينة".</div></div></div>`}
@@ -914,11 +914,11 @@ ${as.length?`<table style="margin-top:8px"><tr><th>#</th><th>النوع</th><th>
 function pDate(s){s=A2L(String(s||'')).trim();let m=s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);if(m)return new Date(+m[1],+m[2]-1,+m[3]);m=s.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);if(m){let y=+m[3];if(y<100)y+=2000;return new Date(y,+m[2]-1,+m[1])}m=s.match(/(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);if(m)return new Date(+m[1],+m[2]-1,+m[3]);return null}
 function daysTo(d){const t=new Date();t.setHours(0,0,0,0);return Math.round((d-t)/864e5)}
 const STAT=['جديد','اتبعت للموردين','وصلت عروض','اتقدم العرض','اتقفل/ترسى','ملغي'];/* extended in v5i */
-function rStatus(r){if(r.status)return r.status;if(r.finAt||r.techAt)return 'اتقدم العرض';if(r.quotes.length)return 'وصلت عروض';if(+r.sentCount>0)return 'اتبعت للموردين';return 'جديد'}
-function tDash(){const rows=S.rfqs.map(r=>{const d=pDate(r.deadline);const dd=d?daysTo(d):null;const closed=/اتقدم|اتقبل|اتشترى|اتشحن|اتسلم|اتحصل|اتقفل|ملغي/.test(rStatus(r));return {r,d,dd,closed}});
+function rStatus(r){if(r.status)return r.status;if(r.finAt||r.techAt)return SN('offered');if(r.quotes.length)return SN('quoted');if(+r.sentCount>0)return SN('sent');return SN('new')}
+function tDash(){const rows=S.rfqs.map(r=>{const d=pDate(r.deadline);const dd=d?daysTo(d):null;const closed=qClosed(r);return {r,d,dd,closed}});
  const open=rows.filter(x=>!x.closed),over=open.filter(x=>x.dd!=null&&x.dd<0),soon=open.filter(x=>x.dd!=null&&x.dd>=0&&x.dd<=3),wait=open.filter(x=>!x.r.quotes.length);
  const box=(n,t,c)=>`<div style="flex:1;min-width:130px;background:#fff;border-radius:8px;padding:10px;border-top:4px solid ${c};box-shadow:0 1px 3px #0002;text-align:center"><div style="font-size:26px;font-weight:bold;color:${c}">${n}</div><div class="muted">${t}</div></div>`;
- const dn=x=>/اتسلم|اتحصل|اتقفل|ملغي/.test(rStatus(x.r)),dvv=x=>{const q=pDate(x.r.delivery);return q?q.getTime():9e15};const sorted=[...rows].sort((S.dashSort||'deliv')==='deliv'?((a,b)=>(dn(a)-dn(b))||(dvv(a)-dvv(b))||((a.dd==null?9999:a.dd)-(b.dd==null?9999:b.dd))):((a,b)=>(a.closed-b.closed)||((a.dd==null?9999:a.dd)-(b.dd==null?9999:b.dd))));
+ const dn=x=>isDone(x.r),dvv=x=>{const q=pDate(x.r.delivery);return q?q.getTime():9e15};const sorted=[...rows].sort((S.dashSort||'deliv')==='deliv'?((a,b)=>(dn(a)-dn(b))||(dvv(a)-dvv(b))||((a.dd==null?9999:a.dd)-(b.dd==null?9999:b.dd))):((a,b)=>(a.closed-b.closed)||((a.dd==null?9999:a.dd)-(b.dd==null?9999:b.dd))));
  return `<div class="row" style="margin-bottom:12px">${box(S.rfqs.length,'كل الطلبات','#1f4e79')}${box(open.length,'مفتوحة','#2e7d32')}${box(over.length,'عدّى ميعادها','#c62828')}${box(soon.length,'ميعادها خلال 3 أيام','#e07b00')}${box(wait.length,'مفيش عروض لسه','#777')}${box(chqDue(),'شيكات مستحقة أو خلال 7 أيام','#6a1b9a')}</div>
 <div class="card"><h2>لوحة المتابعة</h2><div class="row" style="margin-bottom:6px"><label style="width:260px">الترتيب<select onchange="S.dashSort=this.value;save();render()"><option value="deliv" ${(S.dashSort||'deliv')==='deliv'?'selected':''}>حسب ميعاد التسليم (الأقرب أولاً)</option><option value="dead" ${S.dashSort==='dead'?'selected':''}>حسب آخر ميعاد للتقديم</option></select></label></div><div class="scroll"><table><tr><th>رقم الاستفسار</th><th>العميل / الموضوع</th><th>تاريخ الاستلام</th><th>آخر ميعاد للتقديم</th><th>ميعاد التسليم</th><th>المتبقي</th><th>طلبات اتبعتت للموردين</th><th>العروض الواصلة</th><th>البنود</th><th>الحالة</th><th></th></tr>
 ${sorted.map(({r,d,dd,closed})=>{const cls=closed?'':dd==null?'':dd<0?'bad':dd<=3?'warn':'';const left=closed?'-':dd==null?(r.deadline?'؟ صيغة التاريخ':'-'):dd<0?'عدّى بـ '+(-dd)+' يوم':dd===0?'النهاردة':dd+' يوم';
@@ -1143,10 +1143,17 @@ function synSetMeta(o){localStorage.setItem(SYN_META,JSON.stringify(Object.assig
 function synHosted(){return /^https:$/.test(location.protocol)||location.hostname==='localhost'}
 function synMsg(m,err){SYN.msg=m;SYN.err=!!err;['synst','synbtn'].forEach(id=>{const e=document.getElementById(id);if(!e)return;if(id==='synst'){e.textContent=m;e.style.color=err?'#c62828':'#2e7d32'}});synBadge()}
 function synBadge(){const b=document.getElementById('synbtn');if(!b)return;const m=synMeta();const on=SYN.tok&&Date.now()<SYN.exp;b.textContent=!m.cid?'☁ مزامنة':(!on?'☁ سجّل دخول':(SYN.busy?'☁ ...':(m.dirty?'☁ في تعديلات':'☁ ✓')));b.title=SYN.msg||'مزامنة جوجل درايف'}
-function syncDirty(){if(!synMeta().cid)return;synSetMeta({dirty:true});synBadge();clearTimeout(SYN.timer);if(SYN.tok&&Date.now()<SYN.exp)SYN.timer=setTimeout(()=>synPush(true),20000)}
+function syncDirty(){if(SYN.noDirty||!synMeta().cid)return;synSetMeta({dirty:true});synBadge();clearTimeout(SYN.timer);SYN.timer=setTimeout(synAuto,8000)}
+/* only a real change of the state marks it dirty (re-saving the same state on open must not) */
+function syncDirtyState(){let cur;try{cur=JSON.stringify(S)}catch(e){return syncDirty()}if(SYN.snap===undefined||cur===SYN.snap)return;syncDirty()}
+/* auto-upload: 8s after the last edit; re-signs in silently when the token expired (needs a prior consent + Google session) */
+async function synAuto(){if(SYN.busy||!DK||!synHosted()||!synMeta().cid)return;try{await synEnsure(false)}catch(e){synMsg('الرفع التلقائي واقف: دوس زرار "☁ سجّل دخول" مرة. تعديلاتك محفوظة على الجهاز.',true);return}synPush(true)}
+/* pull on open: silent sign-in, then download if Drive is newer (asks first when local edits exist) */
+async function synOpenPull(){if(!DK||!synHosted()||!synMeta().cid)return;try{await synEnsure(false)}catch(e){synMsg('سجّل دخول جوجل (زرار ☁) عشان المزامنة التلقائية تشتغل.',true);return}await synPull(true);if(synMeta().dirty&&!SYN.busy)synPush(true)}
 function synLoadGIS(){return new Promise((res,rej)=>{if(window.google&&google.accounts&&google.accounts.oauth2)return res();const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.onload=res;s.onerror=()=>rej(new Error('مقدرتش أحمّل مكتبة جوجل. تأكد إن فيه إنترنت.'));document.head.appendChild(s)})}
 async function synSignIn(interactive){const m=synMeta();if(!m.cid)throw new Error('اكتب الـClient ID الأول (الإعدادات > مزامنة).');if(!synHosted())throw new Error('تسجيل دخول جوجل بيشتغل من لينك الموقع (https) بس، مش من الملف على الجهاز.');await synLoadGIS();
- return new Promise((res,rej)=>{SYN.tc=google.accounts.oauth2.initTokenClient({client_id:m.cid,scope:SYN_SCOPE,callback:r=>{if(r.error)return rej(new Error('جوجل رفض الدخول: '+(r.error_description||r.error)));SYN.tok=r.access_token;SYN.exp=Date.now()+((+r.expires_in||3600)-60)*1000;synBadge();res()},error_callback:e=>rej(new Error('اتقفلت نافذة الدخول أو اتمنعت (popup).'+(e&&e.type?' ('+e.type+')':'')))});SYN.tc.requestAccessToken({prompt:interactive?'':'none'})})}
+ return new Promise((res,rej)=>{SYN.tc=google.accounts.oauth2.initTokenClient({client_id:m.cid,scope:SYN_SCOPE,hint:m.email||undefined,login_hint:m.email||undefined,callback:r=>{if(r.error)return rej(new Error('جوجل رفض الدخول: '+(r.error_description||r.error)));SYN.tok=r.access_token;SYN.exp=Date.now()+((+r.expires_in||3600)-60)*1000;synBadge();synLearnEmail();res()},error_callback:e=>rej(new Error('اتقفلت نافذة الدخول أو اتمنعت (popup).'+(e&&e.type?' ('+e.type+')':'')))});SYN.tc.requestAccessToken({prompt:interactive?'':'none',hint:m.email||undefined,login_hint:m.email||undefined})})}
+async function synLearnEmail(){try{const r=await fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)',{headers:{Authorization:'Bearer '+SYN.tok}});if(!r.ok)return;const j=await r.json();const e=j&&j.user&&j.user.emailAddress;if(e&&e!==synMeta().email)synSetMeta({email:e})}catch(e){}}
 async function synEnsure(interactive){if(SYN.tok&&Date.now()<SYN.exp)return;await synSignIn(interactive)}
 async function gapi(path,opt){opt=opt||{};const r=await fetch(path,Object.assign({},opt,{headers:Object.assign({Authorization:'Bearer '+SYN.tok},opt.headers||{})}));if(r.status===401){SYN.tok=null;synBadge();throw new Error('انتهت جلسة جوجل. دوس سجّل دخول تاني.')}if(!r.ok){let t='';try{t=(await r.json()).error.message}catch(e){}throw new Error('Drive '+r.status+': '+t)}return r}
 async function drList(){let out=[],pt='';do{const r=await gapi('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&pageSize=1000&fields=nextPageToken,files(id,name,size)'+(pt?'&pageToken='+encodeURIComponent(pt):''));const j=await r.json();out=out.concat(j.files||[]);pt=j.nextPageToken||''}while(pt);return out}
@@ -1159,19 +1166,19 @@ async function idbRaw(k){const db=await idbp;return new Promise(r=>{const q=db.t
 async function idbSet(k,v){const db=await idbp;return new Promise((res,rej)=>{const tx=db.transaction('f','readwrite');tx.objectStore('f').put(v,k);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
 async function synRemoteHead(list){const f=list.find(x=>x.name===SYN_FILE);if(!f)return {f:null,j:null};return {f,j:JSON.parse(await drGet(f.id))}}
 /* push: upload missing files + the state file. conflict if remote moved on while we have local changes */
-async function synPush(auto){if(SYN.busy)return;if(!DK)return;SYN.busy=true;synBadge();try{await synEnsure(false);await flush();const m=synMeta();synMsg('بيرفع...');const list=await drList();const {f,j}=await synRemoteHead(list);
+async function synPush(auto){if(SYN.busy)return;if(!DK)return;if(auto&&!synMeta().dirty)return;const snap0=JSON.stringify(S);SYN.busy=true;synBadge();try{await synEnsure(false);SYN.noDirty=true;try{await flush()}finally{SYN.noDirty=false}const m=synMeta();synMsg('بيرفع...');const list=await drList();const {f,j}=await synRemoteHead(list);
   if(j&&j.rev!==m.base&&m.dirty){SYN.busy=false;if(auto){synMsg('فيه تعديلات على جهاز تاني. دوس مزامنة وانت تختار.',true);return}const keepLocal=confirm('فيه تعديلات على جهاز تاني وعندك تعديلات هنا كمان.\n\nOK = ارفع اللي عندي (يمسح تعديلات الجهاز التاني)\nCancel = خيار تنزيل نسخة درايف بدالها');if(keepLocal){SYN.busy=true}else{const t=confirm('تنزّل نسخة درايف مكان اللي عندك؟ (تعديلاتك هنا هتتمسح. استخدم تصدير نسخة احتياطية قبلها لو عايز تحتفظ بيها)');if(t){await synPullApply(j,list);return}synMsg('اتلغت المزامنة.',true);return}}
   else if(j&&j.rev!==m.base&&!m.dirty){SYN.busy=false;return synPull(true)}
   const names=new Set(list.map(x=>x.name));let up=0;for(const k of await idbKeys()){const n='f_'+k;if(names.has(n))continue;const v=await idbRaw(k);if(v&&v.enc){await drPut(n,JSON.stringify(v));up++}}
-  const rev=(j?j.rev:0)+1;const payload=JSON.stringify({v:1,rev,ts:Date.now(),users:usersDb(),data:localStorage.getItem(EK)});await drPut(SYN_FILE,payload,f&&f.id);synSetMeta({base:rev,dirty:false,last:Date.now()});synMsg('اترفع ✓ '+new Date().toLocaleTimeString('ar-EG')+(up?' ('+up+' ملف)':''))}catch(e){synMsg(e.message||String(e),true)}finally{SYN.busy=false;synBadge()}}
+  const rev=(j?j.rev:0)+1;const payload=JSON.stringify({v:1,rev,ts:Date.now(),users:usersDb(),data:localStorage.getItem(EK)});await drPut(SYN_FILE,payload,f&&f.id);synSetMeta({base:rev,dirty:false,last:Date.now()});SYN.snap=snap0;synMsg('اترفع ✓ '+new Date().toLocaleTimeString('ar-EG')+(up?' ('+up+' ملف)':''))}catch(e){synMsg(e.message||String(e),true)}finally{SYN.busy=false;synBadge()}}
 async function synPullApply(j,list){try{SYN.busy=true;synBadge();synMsg('بينزّل...');if(!j||!j.data)throw new Error('مفيش بيانات على درايف.');if(DK){let s;try{s=await decJson(j.data)}catch(e){throw new Error('مقدرتش أفك تشفير بيانات درايف بمفتاح الجهاز ده (غالباً بيانات من حساب تاني).')}}
   localStorage.setItem(UK,JSON.stringify(j.users));localStorage.setItem(EK,j.data);const have=new Set(await idbKeys());for(const f of list){if(!f.name.startsWith('f_'))continue;const k=f.name.slice(2);if(have.has(k))continue;await idbSet(k,JSON.parse(await drGet(f.id)))}
-  synSetMeta({base:j.rev,dirty:false,last:Date.now()});if(DK){S=await decJson(j.data);ensureS();render();setTimeout(()=>{clearTimeout(SYN.timer);synSetMeta({base:j.rev,dirty:false});synBadge()},800);synMsg('اتنزّل ✓ '+new Date().toLocaleTimeString('ar-EG'))}}catch(e){synMsg(e.message||String(e),true);throw e}finally{SYN.busy=false;synBadge()}}
-async function synPull(auto){try{await synEnsure(false);const list=await drList();const {j}=await synRemoteHead(list);if(!j){synMsg('مفيش نسخة على درايف لسه. دوس "ارفع".');return}const m=synMeta();if(j.rev===m.base&&!auto){synMsg('أنت على آخر نسخة ✓');return}if(m.dirty&&!confirm('عندك تعديلات هنا لسه مترفعتش. التنزيل هيمسحها. تكمل؟'))return;await synPullApply(j,list)}catch(e){synMsg(e.message||String(e),true)}}
+  synSetMeta({base:j.rev,dirty:false,last:Date.now()});if(DK){S=await decJson(j.data);ensureS();render();SYN.snap=JSON.stringify(S);setTimeout(()=>{clearTimeout(SYN.timer);synSetMeta({base:j.rev,dirty:false});synBadge()},800);synMsg('اتنزّل ✓ '+new Date().toLocaleTimeString('ar-EG'))}}catch(e){synMsg(e.message||String(e),true);throw e}finally{SYN.busy=false;synBadge()}}
+async function synPull(auto){try{await synEnsure(false);const list=await drList();const {j}=await synRemoteHead(list);if(!j){synMsg('مفيش نسخة على درايف لسه. دوس "ارفع".');return}const m=synMeta();if(j.rev===m.base){if(!auto)synMsg('أنت على آخر نسخة ✓');return}if(m.dirty&&!confirm('عندك تعديلات هنا لسه مترفعتش. التنزيل هيمسحها. تكمل؟'))return;await synPullApply(j,list)}catch(e){synMsg(e.message||String(e),true)}}
 async function synSync(){try{await synEnsure(true)}catch(e){return synMsg(e.message,true)}const m=synMeta();try{const list=await drList();const {j}=await synRemoteHead(list);if(!j)return synPush();if(j.rev>m.base&&!m.dirty)return synPull(true);return synPush()}catch(e){synMsg(e.message,true)}}
 function synSignOut(){if(SYN.tok&&window.google)try{google.accounts.oauth2.revoke(SYN.tok,()=>{})}catch(e){}SYN.tok=null;SYN.exp=0;synMsg('اتسجل خروج من جوجل.');synBadge();const e=document.getElementById('synstate');if(e)e.textContent=''}
 function synSetCid(v){const m=synMeta();synSetMeta({cid:String(v||'').trim(),dirty:m.base===0?true:m.dirty});synBadge()}
-function synInit(){const w=document.getElementById('who');if(w&&!document.getElementById('synbtn')){const b=document.createElement('button');b.id='synbtn';b.className='b o s';b.onclick=()=>{if(!synMeta().cid){S.tab='set';render();return}synSync()};w.insertAdjacentElement('afterend',b)}synBadge();window.addEventListener('beforeunload',e=>{if(synMeta().dirty&&synMeta().cid){e.preventDefault();e.returnValue=''}})}
+function synInit(){const w=document.getElementById('who');if(w&&!document.getElementById('synbtn')){const b=document.createElement('button');b.id='synbtn';b.className='b o s';b.onclick=()=>{if(!synMeta().cid){const c=prompt('الصق الـClient ID بتاع جوجل (مرة واحدة على الجهاز ده). لو مش معاك اسأل المدير:');if(!c||!c.trim())return;synSetCid(c)}synSync()};w.insertAdjacentElement('afterend',b)}synBadge();try{SYN.snap=JSON.stringify(S)}catch(e){}setTimeout(synOpenPull,1500);window.addEventListener('beforeunload',e=>{if(synMeta().dirty&&synMeta().cid){e.preventDefault();e.returnValue=''}})}
 const syncInit=synInit;
 function synCard(){const m=synMeta();return `<div class="card"><h2>مزامنة جوجل درايف (فتح البرنامج من أي جهاز)</h2>
 <div class="note">البرنامج بيحفظ على درايف بتاعك في فولدر مخفي خاص بيه (drive.appdata): <b>نسخة مشفّرة بس</b>، وجوجل ملوش مفتاح فكها. بتتفك بكلمة سر البرنامج على جهازك. مفاتيح الـAPI وصور البطاقات <b>مش</b> بتتزامن (بتتكتب على كل جهاز).</div>
@@ -1182,7 +1189,7 @@ function synCard(){const m=synMeta();return `<div class="card"><h2>مزامنة 
 <p class="muted">لو اتعدل من جهازين في نفس الوقت، البرنامج بيسألك تحتفظ بأنهي نسخة ومبيمسحش حاجة لوحده. اعمل نسخة احتياطية بشكل دوري برضه.</p></div>`}
 /* lock-screen link: new device pulls the encrypted data from Drive before login */
 function syncLockLink(inner){if(inner.indexOf('id="lu"')<0)return '';return `<div style="margin-top:14px;border-top:1px solid #ddd;padding-top:10px"><a href="#" onclick="synNewDevice();return false" style="font-size:13px">☁ جهاز جديد؟ سجّل دخول جوجل وهات بياناتي من درايف</a><div id="synlk" class="muted" style="font-size:12px"></div></div>`}
-async function synNewDevice(){const lk=t=>{const e=document.getElementById('synlk');if(e)e.textContent=t};try{let m=synMeta();if(!m.cid){const c=prompt('الصق الـClient ID (من إعداد جوجل):');if(!c)return;synSetCid(c)}
+async function synNewDevice(cidArg){const lk=t=>{const e=document.getElementById('synlk');if(e)e.textContent=t};try{if(cidArg&&String(cidArg).trim())synSetCid(cidArg);let m=synMeta();if(!m.cid){const c=prompt('الصق الـClient ID (من إعداد جوجل):');if(!c)return;synSetCid(c)}
   const db=usersDb();if(db&&db.users&&db.users.length&&!confirm('الجهاز ده فيه بيانات متسجلة بالفعل. تنزيل درايف هيستبدلها. تكمل؟'))return;lk('بيسجل دخول جوجل...');await synEnsure(true);lk('بيدور على نسخة...');const list=await drList();const {j}=await synRemoteHead(list);if(!j)return lk('مفيش نسخة على درايف بالحساب ده.');
   await synPullApply(j,list);lk('اتنزّلت ✓ ادخل بنفس اسم المستخدم وكلمة السر.');showLogin()}catch(e){lk(e.message||String(e))}}
 
@@ -1196,6 +1203,13 @@ async function privGate(){const e=document.getElementById('prof-docs');if(!e||!e
   if(b){try{privApply(JSON.parse(await b.text()));return}catch(x){}}
   await new Promise(res=>{window._privRes=res;lockCard(`<h2 style="margin:0 0 6px;color:#1f4e79">ملفات الشركة الخاصة</h2><p>علشان الموقع عام على الإنترنت، دليل الموردين وقوالب الشركات (الأختام والتوقيع) <b>مش موجودين عليه</b>. اختار الملف <b>private_pack.json</b> اللي معاك على الجهاز (مرة واحدة). هيتخزن مشفّر عندك، ولو المزامنة شغالة بيتنقل لباقي أجهزتك.</p><input type="file" accept=".json" onchange="privImport(this)"><p id="perr" style="color:#c62828"></p>`)})}}
 async function privImport(i){const f=i.files[0];if(!f)return;const er=m=>{const e=document.getElementById('perr');if(e)e.textContent=m};try{const t=await f.text();const j=JSON.parse(t);if(!j||j.v!==2||!j.prof||!j.sf||!j.pdef)throw new Error('الملف ده مش private_pack.json الصح (لازم النسخة الجديدة v2)');JSON.parse(j.prof);JSON.parse(j.pdef);await putFile('private_pack',new Blob([t],{type:'application/json'}));const e=document.getElementById('lock');if(e)e.remove();window._privRes&&window._privRes()}catch(e){er(e.message||String(e))}}
+
+function showFirstRun(){lockCard(`<h2 style="margin:0 0 6px;color:#1f4e79">أهلاً بيك</h2><p class="muted">الجهاز ده جديد. لو في بيانات متحفوظة على جوجل درايف (من جهاز تاني)، حطّ الـClient ID وسجّل دخول جوجل وهننزّلها. الـClient ID بيدهولك المدير.</p>
+<label>Google Client ID<input id="frcid" dir="ltr" placeholder="xxxx.apps.googleusercontent.com" value="${esc(synMeta().cid||'')}"></label>
+<button class="b g" style="margin-top:10px;width:100%" onclick="synNewDevice(document.getElementById('frcid').value)">سجّل دخول جوجل ونزّل البيانات</button>
+<div id="synlk" class="muted" style="font-size:12px;margin-top:6px"></div>
+<div class="note" style="margin-top:10px;font-size:12px">لازم المدير يكون ضايف إيميل جوجل بتاعك في "Test users" في إعدادات OAuth، وإلا جوجل هيرفض الدخول.</div>
+<div style="margin-top:12px;border-top:1px solid #ddd;padding-top:10px"><a href="#" onclick="sessionStorage.setItem('om_first_skip','1');showSetup(false);return false" style="font-size:13px">أنا أول مرة وهعمل حساب مدير</a></div>`)}
 
 /* ================= v5b: round draggable chat bubble + resizable/collapsible panels ================= */
 function chatMinimize(){CUI.open=false;chatMin=false;cuiSave();chatRender()}
@@ -1248,7 +1262,7 @@ ${LSIMP?`<div class="card" style="margin-top:10px"><p class="muted">الصق ص�
 <div class="card"><h2>رسالة طلب التسعير ${r?'(الطلب الحالي: '+esc(r.no||'')+')':''}</h2>${r?`<p class="muted">الرسالة من بنود الطلب من غير اسم العميل، وتقدر تعدلها. بعد الإرسال بيتعلّم المورد "اتبعتله" ويزيد عدد "اتبعت لـ" في اللوحة.</p>
 <textarea style="height:190px" oninput="S.lsTpl[R().id]=this.value;save()">${esc(lsMsg())}</textarea><div class="row" style="margin-top:6px"><button class="b o" onclick="lsCopy()">نسخ الرسالة</button><button class="b o" onclick="S.lsTpl[R().id]=lsDefMsg(R());save();render()">إرجاع النص الأصلي</button><button class="b" onclick="lsMail()">إيميل للمحدّدين (BCC)</button></div>`:'<p class="muted">افتح أو اعمل طلب تسعير الأول.</p>'}</div>`}
 function lsRowHtml(s,sent){const inp=(k,w,dir)=>`<td><input ${dir?'dir="ltr"':''} style="min-width:${w}px" value="${esc(s[k]||'')}" oninput="lsSet('${s.id}','${k}',this.value)"></td>`;const ok=waNum(s.mobile),ok2=s.mobile2&&waNum(s.mobile2);
- return `<tr><td><input type="checkbox" style="width:auto" ${LSSEL[s.id]?'checked':''} onchange="LSSEL['${s.id}']=this.checked"></td>${inp('name',150)}${inp('contact',110)}${inp('mobile',110,1)}${inp('mobile2',110,1)}${inp('email',140,1)}${inp('city',100)}${inp('cat',110)}${inp('notes',130)}
+ return `<tr><td><input type="checkbox" style="width:auto" ${LSSEL[s.id]?'checked':''} onchange="LSSEL['${s.id}']=this.checked"></td>${inp('name',150)}${inp('contact',110)}${inp('mobile',110,1)}${inp('mobile2',110,1)}${inp('email',140,1)}${inp('city',100)}<td><input list="lscats" style="min-width:110px" value="${esc(s.cat||'')}" oninput="lsSet('${s.id}','cat',this.value)"></td>${inp('notes',130)}
  <td style="white-space:nowrap"><button class="b s g" title="واتساب" onclick="lsWA('${s.id}')">واتساب</button>${ok2?` <button class="b s o" onclick="lsWA('${s.id}',1)">رقم 2</button>`:''} ${sent[s.id]?'<span class="tag t-ok">اتبعتله ✓</span>':''}${s.mobile&&!ok?' <span class="tag t-no" title="رقم غير مفهوم">رقم؟</span>':''}</td><td><button class="b s r" onclick="lsDel('${s.id}')">حذف</button></td></tr>`}
 function lsRefresh(){const t=document.getElementById('lstb');if(!t)return;const sent=(R()||{}).lsSent||{};t.innerHTML=t.rows[0].outerHTML+(lsRows().map(s=>lsRowHtml(s,sent)).join('')||'<tr><td colspan="12" class="muted">مفيش نتايج.</td></tr>')}
 
@@ -1262,10 +1276,23 @@ const ROLE_DEF={
  sales:{tabs:['dash','rfq','ord','tech','fin','auth','lists'],sec:['ship'],hideCust:false,buy:false},
  rep:{tabs:['rep','ord','ship','lsup'],sec:['inv','ship'],hideCust:true,buy:false}};
 const ROLE_WARN='⚠ الصلاحيات دي بتخفي الشاشات والبيانات من الواجهة بس، مش حماية حقيقية: كل المستخدمين بيفتحوا نفس المخزن المشفّر بنفس المفتاح، وأي حد معاه الجهاز أو ملف البيانات ومعرفة تقنية (أو بيفتح أدوات المتصفح) يقدر يشوف كل حاجة. استخدمها لتنظيم الشغل، مش لإخفاء حاجة سرية فعلاً. الحماية الحقيقية محتاجة سيرفر.';
-const STAGES=['جديد','اتبعت للموردين','وصلت عروض','اتقدم العرض','اتقبل','اتشترى','اتشحن','اتسلم','اتحصل'];
-STAT.length=0;STAGES.concat(['اتقفل/ترسى','ملغي']).forEach(s=>STAT.push(s));
-const SHST=['جاهز للتسليم','اتسلم لشركة الشحن','في الطريق','اتسلم للعميل'];
-function roleEnsure(){S.roleCfg=S.roleCfg||{};for(const k in ROLE_DEF)if(!S.roleCfg[k])S.roleCfg[k]=JSON.parse(JSON.stringify(ROLE_DEF[k]));S.shipcos=S.shipcos||[]}
+/* ---- editable lists (admin): statuses, shipment states, supplier categories, currencies ---- */
+const STAT_DEF=[{k:'new',n:'جديد',qc:0,dn:0},{k:'sent',n:'اتبعت للموردين',qc:0,dn:0},{k:'quoted',n:'وصلت عروض',qc:0,dn:0},{k:'offered',n:'اتقدم العرض',qc:1,dn:0},{k:'accepted',n:'اتقبل',qc:1,dn:0},{k:'bought',n:'تم الشراء',qc:1,dn:0},{k:'shipped',n:'اتشحن',qc:1,dn:0},{k:'delivered',n:'اتسلم',qc:1,dn:1},{k:'paid',n:'اتحصل',qc:1,dn:1},{k:'closed',n:'اتقفل/ترسى',qc:1,dn:1},{k:'cancel',n:'ملغي',qc:1,dn:1}];
+const SHST_DEF=[{k:'ready',n:'جاهز للتسليم'},{k:'handed',n:'اتسلم لشركة الشحن'},{k:'way',n:'في الطريق'},{k:'cust',n:'اتسلم للعميل'}];
+function listsEnsure(){if(!S)return;const L=S.lists=S.lists||{};if(!L.status)L.status=STAT_DEF.map(x=>Object.assign({},x));if(!L.status.some(x=>x.n==='اتشترى')){const bn=L.status.find(x=>x.k==='bought').n;(S.rfqs||[]).forEach(r=>{if(r.status==='اتشترى')r.status=bn})}
+ if(!L.shipst)L.shipst=SHST_DEF.map(x=>Object.assign({},x));if(!L.cats)L.cats=[];if(!L.curs)L.curs=['EGP','USD','EUR'].map(n=>({n}));
+ (S.lsup||[]).forEach(x=>{const c=(x.cat||'').trim();if(c&&!L.cats.some(y=>y.n===c))L.cats.push({n:c})});(S.rfqs||[]).forEach(r=>[...(r.chq||[]),...(r.pinv||[])].forEach(x=>{const c=(x.cur||'').trim();if(c&&!L.curs.some(y=>y.n===c))L.curs.push({n:c})}));
+ STAT.length=0;L.status.forEach(x=>STAT.push(x.n))}
+function SN(k){const L=S&&S.lists&&S.lists.status;const o=(L&&L.find(x=>x.k===k))||STAT_DEF.find(x=>x.k===k);return o.n}
+function statObj(n){const L=S&&S.lists&&S.lists.status;return L&&L.find(x=>x.n===n)}
+function rankName(n){return S.lists.status.findIndex(x=>x.n===n)}
+function rankK(k){return S.lists.status.findIndex(x=>x.k===k)}
+function qClosed(r){const o=statObj(rStatus(r));return o?!!o.qc:false}
+function isDone(r){const o=statObj(rStatus(r));return o?!!o.dn:false}
+function bump(r,k){if(rankName(rStatus(r))<rankK(k))r.status=SN(k)}
+function shNames(){return S.lists.shipst.map(x=>x.n)}
+function shK(n){const o=S.lists.shipst.find(x=>x.n===n);return o&&o.k}
+function roleEnsure(){listsEnsure();S.roleCfg=S.roleCfg||{};for(const k in ROLE_DEF)if(!S.roleCfg[k])S.roleCfg[k]=JSON.parse(JSON.stringify(ROLE_DEF[k]));S.shipcos=S.shipcos||[]}
 function myRole(){return (ME&&ME.role)||'admin'}
 function myCfg(){const role=myRole();const all=ALLTABS.map(t=>t[0]);
  if(role==='admin'||role==='user')return {tabs:all,sec:SECS.map(s=>s[0]),hideCust:false,buy:true,full:true};
@@ -1274,34 +1301,33 @@ function myCfg(){const role=myRole();const all=ALLTABS.map(t=>t[0]);
  if(!c.buy)tabs=tabs.filter(t=>!['quotes','cmp'].includes(t));
  if(!tabs.length)tabs=['dash'];return {tabs,sec:c.sec||[],hideCust:!!c.hideCust,buy:!!c.buy,full:false}}
 const canTab=t=>myCfg().tabs.includes(t),canSec=s=>myCfg().sec.includes(s);
-function ordRank(s){return STAGES.indexOf(s)}
 function tlAdd(r,txt){r.tl=r.tl||[];r.tl.push({t:Date.now(),by:(ME&&ME.name)||'',txt})}
 function fmtDT(t){const d=new Date(t);const p=n=>String(n).padStart(2,'0');return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear()+' '+p(d.getHours())+':'+p(d.getMinutes())}
 function nowS(){return todayStr()}
 function cpTxt(t){const ok=()=>toast('اتنسخ ✓');setTimeout(()=>toast(''),1400);if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(ok,()=>cpFb(t,ok))}else cpFb(t,ok)}
 function cpFb(t,ok){const a=document.createElement('textarea');a.value=t;a.style.cssText='position:fixed;opacity:0';document.body.appendChild(a);a.select();try{document.execCommand('copy');ok()}catch(e){toast('تعذر النسخ',1)}a.remove()}
-function rfqSorted(){const done=r=>/اتسلم|اتحصل|اتقفل|ملغي/.test(rStatus(r));const dv=r=>{const d=pDate(r.delivery);return d?d.getTime():9e15};return [...S.rfqs].sort((a,b)=>(done(a)-done(b))||(dv(a)-dv(b)))}
+function rfqSorted(){const done=r=>isDone(r)?1:0;const dv=r=>{const d=pDate(r.delivery);return d?d.getTime():9e15};return [...S.rfqs].sort((a,b)=>(done(a)-done(b))||(dv(a)-dv(b)))}
 function chqDays(c){const d=pDate(c.due);return d?daysTo(d):null}
 function chqDue(){let n=0;S.rfqs.forEach(r=>(r.chq||[]).forEach(c=>{if(!c.cashed){const d=chqDays(c);if(d!=null&&d<=7)n++}}));return n}
 function chqState(c){if(c.cashed)return `<span class="tag t-ok">اتصرف ✓ ${esc(c.cashedAt||'')}</span>`;const d=chqDays(c);if(d==null)return '<span class="tag t-gr">بدون تاريخ</span>';if(d<0)return `<span class="tag t-no">استحق من ${-d} يوم ولسه</span>`;if(d===0)return '<span class="tag t-no">يستحق النهاردة</span>';return `<span class="tag ${d<=7?'t-no':'t-gr'}">باقي ${d} يوم</span>`}
 function ordArr(k){const r=R();return r[k]=r[k]||[]}
 function ordFind(k,id){return ordArr(k).find(x=>x.id===id)}
 function ordSet(k,id,f,v){const c=ordFind(k,id);if(c){c[f]=v;save()}}
-function ordAdd(k,tpl){const r=R();ordArr(k).push(Object.assign({id:uid()},tpl));tlAdd(r,{chq:'إضافة شيك',pinv:'إضافة فاتورة شراء',shp:'إضافة شحنة'}[k]);save();render()}
+function ordAdd(k,tpl){const r=R();ordArr(k).push(Object.assign({id:uid()},tpl));if(k==='shp'){const a=ordArr(k);if(!a[a.length-1].state)a[a.length-1].state=shNames()[0]};tlAdd(r,{chq:'إضافة شيك',pinv:'إضافة فاتورة شراء',shp:'إضافة شحنة'}[k]);save();render()}
 function ordDel(k,id){if(!confirm('حذف؟'))return;const r=R();r[k]=ordArr(k).filter(x=>x.id!==id);save();render()}
 async function ordFile(k,id,inp){const f=inp.files[0];if(!f)return;if(f.size>15*1024*1024&&!confirm('الملف أكبر من 15 ميجا وهيبطّأ الحفظ والمزامنة. تكمل؟'))return;const c=ordFind(k,id);if(!c)return;const fid=uid();await putFile(fid,f);c.fileId=fid;c.fname=f.name;tlAdd(R(),{pinv:'رفع فاتورة شراء: ',shp:'رفع بوليصة شحن: '}[k]+f.name);save();render()}
 async function ordGet(k,id){const c=ordFind(k,id);if(!c||!c.fileId)return;const b=await getFile(c.fileId);if(!b)return toast('الملف مش موجود على الجهاز ده (ممكن لسه ما اتزامنش)',1);dl(b,c.fname||'file')}
 function ordStatus(v){const r=R();r.status=v;tlAdd(r,'الحالة: '+v);save();render()}
 function ordNote(){const i=document.getElementById('tln');const v=i.value.trim();if(!v)return;tlAdd(R(),v);save();render()}
-function ordBought(){const r=R();if(r.boughtAt)return;r.boughtAt=nowS();if(ordRank(rStatus(r))<ordRank('اتشترى'))r.status='اتشترى';tlAdd(r,'تم الشراء');save();render()}
+function ordBought(){const r=R();if(r.boughtAt)return;r.boughtAt=nowS();bump(r,'bought');tlAdd(r,'تم الشراء');save();render()}
 function chqCash(id,v){const r=R();const c=ordFind('chq',id);if(!c)return;c.cashed=v;c.cashedAt=v?nowS():'';tlAdd(r,'شيك '+(c.no||'')+(v?': اتصرف':': رجع غير مصروف'));
- if(r.chq.length&&r.chq.every(x=>x.cashed)&&/^اتسلم$/.test(rStatus(r))){r.status='اتحصل';tlAdd(r,'الحالة: اتحصل (كل الشيكات اتصرفت)')}
+ if(r.chq.length&&r.chq.every(x=>x.cashed)&&rStatus(r)===SN('delivered')){r.status=SN('paid');tlAdd(r,'الحالة: '+SN('paid')+' (كل الشيكات اتصرفت)')}
  else if(!v&&rStatus(r)==='اتحصل'){r.status='اتسلم'}
  save();render()}
 function shUrl(s){if(s.url&&s.url.trim())return s.url.trim();const co=S.shipcos.find(x=>x.id===s.co);if(co&&co.track&&co.track.includes('{no}')&&s.no)return co.track.replace('{no}',encodeURIComponent(String(s.no).trim()));return ''}
 function shState(id,v){const r=R();const s=ordFind('shp',id);if(!s)return;s.state=v;tlAdd(r,'شحنة '+(s.no||'')+': '+v);
- if(v==='اتسلم لشركة الشحن'&&ordRank(rStatus(r))<ordRank('اتشحن'))r.status='اتشحن';
- if(v==='اتسلم للعميل'&&ordRank(rStatus(r))<ordRank('اتسلم'))r.status='اتسلم';
+ if(shK(v)==='handed')bump(r,'shipped');
+ if(shK(v)==='cust')bump(r,'delivered');
  save();render()}
 function shOpen(id){const s=ordFind('shp',id);const u=s&&shUrl(s);if(!u)return alert('مفيش لينك تتبع: ضيف قالب التتبع في شركة الشحن (فيه {no}) أو الصق لينك في خانة "لينك التتبع".');window.open(u,'_blank','noopener')}
 function shCopy(id){const r=R();const s=ordFind('shp',id);if(!s)return;const co=S.shipcos.find(x=>x.id===s.co)||{};const u=shUrl(s);
@@ -1314,32 +1340,32 @@ function tShip(){roleEnsure();const inp=(c,k,w,d)=>`<td><input ${d?'dir="ltr"':'
 <div class="scroll"><table><tr><th>الشركة</th><th>المسؤول</th><th>تليفون</th><th>إيميل</th><th>الموقع</th><th>قالب لينك التتبع</th><th>ملاحظات</th><th></th></tr>${S.shipcos.map(c=>`<tr>${inp(c,'name',140)}${inp(c,'contact',110)}${inp(c,'phone',110,1)}${inp(c,'email',140,1)}${inp(c,'website',140,1)}${inp(c,'track',220,1)}${inp(c,'notes',130)}<td><button class="b s r" onclick="shcDel('${c.id}')">حذف</button></td></tr>`).join('')||'<tr><td colspan="8" class="muted">مفيش شركات. دوس "+ شركة شحن".</td></tr>'}</table></div><button class="b o s" style="margin-top:6px" onclick="shcAdd()">+ شركة شحن</button></div>`}
 /* ---- order tab ---- */
 function tOrd(){const r=R();if(!r)return '<div class="card">ابدأ بإضافة طلب تسعير جديد من الزرار الأخضر فوق.</div>';roleEnsure();['chq','pinv','shp','tl'].forEach(k=>{r[k]=r[k]||[]});
- const st=rStatus(r),ci=ordRank(st);const cfg=myCfg();
- const chips=STAGES.map((s,i)=>`<span class="stp ${s===st?'cur':i<ci?'on':''}">${s}</span>`).join('');
+ const st=rStatus(r),ci=rankName(st);const cfg=myCfg();
+ const chips=S.lists.status.map((o,i)=>(o.k==='cancel'||o.k==='closed')&&o.n!==st?'':`<span class="stp ${o.n===st?'cur':i<ci?'on':''}">${esc(o.n)}</span>`).join('');
  const dv=pDate(r.delivery);
  const nq=r.quotes.length;
  const offer=(lab,at,w,p,can)=>`<tr><td><b>${lab}</b></td><td>${at?`<span class="tag t-ok">صدر ${esc(at)}</span>`:'<span class="tag t-no">لسه ما اتصدرش</span>'}</td><td>${can?`<button class="b s" onclick="${w}()">تنزيل Word</button> <button class="b s o" onclick="${p}()">PDF تقريبي</button>`:'<span class="muted">-</span>'}</td></tr>`;
- let h=`<div class="card"><h2>حالة الطلب: ${esc(r.no||'بدون رقم')} ${r.subject?'- '+esc(r.subject):''}</h2><div style="margin:6px 0">${chips}${/اتقفل|ملغي/.test(st)?`<span class="stp cur">${esc(st)}</span>`:''}</div>
-<div class="row"><label style="width:200px">الحالة<select onchange="ordStatus(this.value)">${STAT.map(s=>`<option ${s===st?'selected':''}>${s}</option>`).join('')}</select></label>
+ let h=`<datalist id="curl">${S.lists.curs.map(c=>`<option value="${esc(c.n)}">`).join('')}</datalist><div class="card"><h2>حالة الطلب: ${esc(r.no||'بدون رقم')} ${r.subject?'- '+esc(r.subject):''}</h2><div style="margin:6px 0">${chips}</div>
+<div class="row"><label style="width:200px">الحالة<select onchange="ordStatus(this.value)">${STAT.map(s=>`<option ${s===st?'selected':''}>${esc(s)}</option>`).join('')}</select></label>
 <label style="width:200px">ميعاد التسليم للعميل<input value="${esc(r.delivery||'')}" placeholder="25/12/2026" oninput="R().delivery=this.value;save()" onchange="render()"></label>${r.delivery&&!dv?'<span class="tag t-no">صيغة التاريخ مش مفهومة</span>':dv?`<span class="tag ${daysTo(dv)<0?'t-no':'t-gr'}">${daysTo(dv)<0?'عدّى بـ '+(-daysTo(dv))+' يوم':daysTo(dv)===0?'النهاردة':'باقي '+daysTo(dv)+' يوم'}</span>`:''}
-${(cfg.full||canSec('inv')||canTab('rep'))&&!r.boughtAt?`<button class="b g" onclick="ordBought()">✔ تم الشراء</button>`:r.boughtAt?`<span class="tag t-ok">اتشترى ${esc(r.boughtAt)}</span>`:''}</div></div>
+${(cfg.full||canSec('inv')||canTab('rep'))&&!r.boughtAt?`<button class="b g" onclick="ordBought()">✔ تم الشراء</button>`:r.boughtAt?`<span class="tag t-ok">تم الشراء ${esc(r.boughtAt)}</span>`:''}</div></div>
 <div class="card"><h2>العروض</h2><table><tr><th>البند</th><th>الحالة</th><th></th></tr>
 <tr><td><b>عروض الموردين</b></td><td>${nq?`<span class="tag t-ok">وصل ${nq} عرض</span>`:'<span class="tag t-no">لسه مفيش عروض</span>'}</td><td></td></tr>
 ${offer('العرض الفني',r.techAt,'issueTech','issueTechPdf',canTab('tech'))}${offer('العرض المالي',r.finAt,'issueFin','issueFinPdf',canTab('fin'))}</table><p class="muted">أزرار التحميل بتولّد الملف من بيانات الطلب الحالية. PDF الدقيق: نزّل Word واعمله Save as PDF من Word.</p></div>`;
  if(cfg.full||canSec('chq')){const tot={},cash={};r.chq.forEach(c=>{const k=c.cur||'EGP';const a=parseFloat(A2L(c.amt))||0;tot[k]=(tot[k]||0)+a;if(c.cashed)cash[k]=(cash[k]||0)+a});
   h+=`<div class="card"><h2>الشيكات (${r.chq.length})</h2><div class="scroll"><table><tr><th>رقم الشيك</th><th>البنك</th><th>المبلغ</th><th>العملة</th><th>تاريخ الاستحقاق</th><th>الحالة</th><th>اتصرف</th><th>ملاحظات</th><th></th></tr>
-${r.chq.map(c=>`<tr class="${!c.cashed&&chqDays(c)!=null&&chqDays(c)<0?'bad':''}"><td><input style="min-width:100px" value="${esc(c.no||'')}" oninput="ordSet('chq','${c.id}','no',this.value)"></td><td><input style="min-width:110px" value="${esc(c.bank||'')}" oninput="ordSet('chq','${c.id}','bank',this.value)"></td><td><input dir="ltr" style="min-width:100px" value="${esc(c.amt||'')}" oninput="ordSet('chq','${c.id}','amt',this.value)" onchange="render()"></td><td><input style="width:70px" value="${esc(c.cur||'EGP')}" oninput="ordSet('chq','${c.id}','cur',this.value.toUpperCase())" onchange="render()"></td><td><input style="min-width:105px" value="${esc(c.due||'')}" placeholder="25/12/2026" oninput="ordSet('chq','${c.id}','due',this.value)" onchange="render()"></td><td>${chqState(c)}</td><td><input type="checkbox" style="width:auto" ${c.cashed?'checked':''} onchange="chqCash('${c.id}',this.checked)"></td><td><input style="min-width:110px" value="${esc(c.notes||'')}" oninput="ordSet('chq','${c.id}','notes',this.value)"></td><td><button class="b s r" onclick="ordDel('chq','${c.id}')">حذف</button></td></tr>`).join('')||'<tr><td colspan="9" class="muted">مفيش شيكات.</td></tr>'}</table></div>
+${r.chq.map(c=>`<tr class="${!c.cashed&&chqDays(c)!=null&&chqDays(c)<0?'bad':''}"><td><input style="min-width:100px" value="${esc(c.no||'')}" oninput="ordSet('chq','${c.id}','no',this.value)"></td><td><input style="min-width:110px" value="${esc(c.bank||'')}" oninput="ordSet('chq','${c.id}','bank',this.value)"></td><td><input dir="ltr" style="min-width:100px" value="${esc(c.amt||'')}" oninput="ordSet('chq','${c.id}','amt',this.value)" onchange="render()"></td><td><input style="width:70px" list="curl" value="${esc(c.cur||'EGP')}" oninput="ordSet('chq','${c.id}','cur',this.value.toUpperCase())" onchange="render()"></td><td><input style="min-width:105px" value="${esc(c.due||'')}" placeholder="25/12/2026" oninput="ordSet('chq','${c.id}','due',this.value)" onchange="render()"></td><td>${chqState(c)}</td><td><input type="checkbox" style="width:auto" ${c.cashed?'checked':''} onchange="chqCash('${c.id}',this.checked)"></td><td><input style="min-width:110px" value="${esc(c.notes||'')}" oninput="ordSet('chq','${c.id}','notes',this.value)"></td><td><button class="b s r" onclick="ordDel('chq','${c.id}')">حذف</button></td></tr>`).join('')||'<tr><td colspan="9" class="muted">مفيش شيكات.</td></tr>'}</table></div>
 <button class="b o s" style="margin-top:6px" onclick="ordAdd('chq',{no:'',bank:'',amt:'',cur:'EGP',due:'',cashed:false,notes:''})">+ شيك</button>${Object.keys(tot).length?`<p style="margin-top:8px"><b>الإجمالي:</b> ${Object.keys(tot).map(k=>`${tot[k].toLocaleString('en')} ${esc(k)} (اتصرف ${(cash[k]||0).toLocaleString('en')}، فاضل ${(tot[k]-(cash[k]||0)).toLocaleString('en')})`).join(' | ')}</p>`:''}</div>`}
  if(cfg.full||canSec('inv')){h+=`<div class="card"><h2>فواتير الشراء (${r.pinv.length})</h2><div class="scroll"><table><tr><th>رقم الفاتورة</th><th>المورد</th><th>التاريخ</th><th>المبلغ</th><th>العملة</th><th>الملف</th><th></th></tr>
-${r.pinv.map(c=>`<tr><td><input style="min-width:100px" value="${esc(c.no||'')}" oninput="ordSet('pinv','${c.id}','no',this.value)"></td><td><input style="min-width:130px" value="${esc(c.sup||'')}" oninput="ordSet('pinv','${c.id}','sup',this.value)"></td><td><input style="min-width:100px" value="${esc(c.date||'')}" oninput="ordSet('pinv','${c.id}','date',this.value)"></td><td><input dir="ltr" style="min-width:90px" value="${esc(c.amt||'')}" oninput="ordSet('pinv','${c.id}','amt',this.value)"></td><td><input style="width:70px" value="${esc(c.cur||'')}" oninput="ordSet('pinv','${c.id}','cur',this.value.toUpperCase())"></td>
+${r.pinv.map(c=>`<tr><td><input style="min-width:100px" value="${esc(c.no||'')}" oninput="ordSet('pinv','${c.id}','no',this.value)"></td><td><input style="min-width:130px" value="${esc(c.sup||'')}" oninput="ordSet('pinv','${c.id}','sup',this.value)"></td><td><input style="min-width:100px" value="${esc(c.date||'')}" oninput="ordSet('pinv','${c.id}','date',this.value)"></td><td><input dir="ltr" style="min-width:90px" value="${esc(c.amt||'')}" oninput="ordSet('pinv','${c.id}','amt',this.value)"></td><td><input style="width:70px" list="curl" value="${esc(c.cur||'')}" oninput="ordSet('pinv','${c.id}','cur',this.value.toUpperCase())"></td>
 <td>${c.fileId?`<button class="b s g" onclick="ordGet('pinv','${c.id}')">تحميل: ${esc((c.fname||'').slice(0,22))}</button> `:''}<input type="file" style="max-width:170px" onchange="ordFile('pinv','${c.id}',this)"></td><td><button class="b s r" onclick="ordDel('pinv','${c.id}')">حذف</button></td></tr>`).join('')||'<tr><td colspan="7" class="muted">مفيش فواتير.</td></tr>'}</table></div><button class="b o s" style="margin-top:6px" onclick="ordAdd('pinv',{no:'',sup:'',date:'',amt:'',cur:''})">+ فاتورة شراء</button></div>`}
  if(cfg.full||canSec('ship')){h+=`<div class="card"><h2>الشحن والبوليصة (${r.shp.length})</h2>${!S.shipcos.length?'<div class="note">سجّل شركة الشحن الأول من تبويب "شركات الشحن".</div>':''}
 ${r.shp.map(s=>{const u=shUrl(s);return `<div style="border:1px solid #d5dde6;border-radius:8px;padding:10px;margin-bottom:8px"><div class="row"><label style="width:200px">شركة الشحن<select onchange="ordSet('shp','${s.id}','co',this.value);render()"><option value="">اختر...</option>${S.shipcos.map(c=>`<option value="${c.id}" ${c.id===s.co?'selected':''}>${esc(c.name||'(بدون اسم)')}</option>`).join('')}</select></label>
 <label style="width:170px">رقم البوليصة<input dir="ltr" value="${esc(s.no||'')}" oninput="ordSet('shp','${s.id}','no',this.value)" onchange="render()"></label>
-<label style="width:200px">الحالة<select onchange="shState('${s.id}',this.value)">${SHST.map(x=>`<option ${x===s.state?'selected':''}>${x}</option>`).join('')}</select></label>
+<label style="width:200px">الحالة<select onchange="shState('${s.id}',this.value)">${shNames().map(x=>`<option ${x===s.state?'selected':''}>${esc(x)}</option>`).join('')}</select></label>
 <label style="width:280px">لينك التتبع (اختياري، بيعدّل على القالب)<input dir="ltr" value="${esc(s.url||'')}" oninput="ordSet('shp','${s.id}','url',this.value)" onchange="render()"></label></div>
 <div class="row" style="margin-top:6px">${s.fileId?`<button class="b s g" onclick="ordGet('shp','${s.id}')">تحميل البوليصة: ${esc((s.fname||'').slice(0,22))}</button>`:''}<input type="file" style="max-width:200px" onchange="ordFile('shp','${s.id}',this)"><button class="b s" ${u?'':'disabled'} onclick="shOpen('${s.id}')">فتح التتبع</button><button class="b s o" onclick="shCopy('${s.id}')">نسخ رسالة التتبع للعميل</button><button class="b s r" onclick="ordDel('shp','${s.id}')">حذف</button></div>${u?`<div class="muted" dir="ltr" style="margin-top:4px">${esc(u)}</div>`:'<div class="muted" style="margin-top:4px">مفيش لينك تتبع لسه (محتاج قالب في شركة الشحن أو لينك يدوي).</div>'}</div>`}).join('')||'<p class="muted">مفيش شحنات.</p>'}
-<button class="b o s" onclick="ordAdd('shp',{co:'',no:'',state:'جاهز للتسليم',url:''})">+ شحنة / بوليصة</button></div>`}
+<button class="b o s" onclick="ordAdd('shp',{co:'',no:'',state:'',url:''})">+ شحنة / بوليصة</button></div>`}
  const tl=[...r.tl].sort((a,b)=>b.t-a.t);
  h+=`<div class="card"><h2>خط سير الطلب</h2><div class="row"><input id="tln" style="flex:1;min-width:220px" placeholder="ملاحظة (مثلاً: اتصلت بالمورد)"><button class="b s" onclick="ordNote()">إضافة</button></div><table style="margin-top:8px">${tl.map(e=>`<tr><td style="width:140px;white-space:nowrap">${fmtDT(e.t)}</td><td style="width:110px">${esc(e.by||'')}</td><td>${esc(e.txt)}</td></tr>`).join('')||'<tr><td class="muted">لسه مفيش أحداث.</td></tr>'}</table></div>`;
  return h}
@@ -1349,7 +1375,7 @@ function ordRec(r){try{const {res}=analyse(r);const ok=res.filter(x=>x.full&&!x.
 function mapUrl(l){l=String(l||'').trim();if(!l)return '';return /^https?:\/\//i.test(l)?l:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(l)}
 function tRep(){const r=R();if(!r)return '<div class="card">اختار طلب من القايمة اللي فوق.</div>';syncSups();const cfg=myCfg();const rec=ordRec(r);const qid=r.exec||rec;const q=r.quotes.find(x=>x.id===qid);
  const key=n=>String(n||'').toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]/g,'');const sp=q&&S.sups.find(x=>key(x.name)===key(q.supplier));
- let h=`<div class="card"><h2>مهمة الشراء: ${esc(r.no||'بدون رقم')} ${r.subject?'- '+esc(r.subject):''}</h2><div class="row"><label style="width:280px">المورد اللي هيتنفذ معاه${!r.exec&&rec?' (مرشّح تلقائي)':''}<select onchange="R().exec=this.value;save();render()"><option value="">اختر...</option>${r.quotes.map(x=>`<option value="${x.id}" ${x.id===qid?'selected':''}>${esc(x.supplier||'(بدون اسم)')}</option>`).join('')}</select></label>${r.boughtAt?`<span class="tag t-ok">اتشترى ${esc(r.boughtAt)}</span>`:`<button class="b g" onclick="ordBought()">✔ تم الشراء</button>`}<button class="b o" onclick="S.tab='ord';save();render()">فواتير الشراء والشحن</button></div></div>`;
+ let h=`<div class="card"><h2>مهمة الشراء: ${esc(r.no||'بدون رقم')} ${r.subject?'- '+esc(r.subject):''}</h2><div class="row"><label style="width:280px">المورد اللي هيتنفذ معاه${!r.exec&&rec?' (مرشّح تلقائي)':''}<select onchange="R().exec=this.value;save();render()"><option value="">اختر...</option>${r.quotes.map(x=>`<option value="${x.id}" ${x.id===qid?'selected':''}>${esc(x.supplier||'(بدون اسم)')}</option>`).join('')}</select></label>${r.boughtAt?`<span class="tag t-ok">تم الشراء ${esc(r.boughtAt)}</span>`:`<button class="b g" onclick="ordBought()">✔ تم الشراء</button>`}<button class="b o" onclick="S.tab='ord';save();render()">فواتير الشراء والشحن</button></div></div>`;
  if(!q)return h+'<div class="card muted">اختار المورد من فوق (أو ضيف عروض موردين الأول).</div>';
  const ph=sp&&sp.loc;
  h+=`<div class="card"><h2>بيانات المورد</h2><table><tr><td><b>المورد</b></td><td>${esc(q.supplier||'')}</td><td><b>الدولة</b></td><td>${esc(q.country||'')}</td></tr>
@@ -1372,9 +1398,9 @@ function postRole(cfg){const role=myRole();const w=document.getElementById('who'
  const ch=document.getElementById('chatroot');if(ch)ch.style.display=cfg.full?'':'none';
  const m=document.getElementById('main');if(!m)return;
  if(cfg.hideCust){m.querySelectorAll('[oninput*="R().client"]').forEach(i=>{i.disabled=true;i.value='';i.placeholder='(مخفي)'});m.querySelectorAll('[onchange^="custPick"]').forEach(e=>{const l=e.closest('label');(l||e).remove()});m.querySelectorAll('button[onclick^="custSave"]').forEach(e=>e.remove());
-  m.querySelectorAll('.card').forEach(c=>{const h=c.querySelector('h2');if(h&&/^(العملاء|الأشخاص)/.test(h.textContent.trim()))c.remove()})}
- if(role==='admin'&&!S.roleWarnSeen){const d=document.createElement('div');d.className='note';d.style.cssText='margin-bottom:12px;background:#fff3cd';d.innerHTML=ROLE_WARN+' <button class="b s" onclick="S.roleWarnSeen=1;save();render()">فهمت</button>';m.prepend(d)}}
-const _tSet0=tSet;tSet=function(){return _tSet0()+rolesCard()};
+  m.querySelectorAll('.card').forEach(c=>{const h=c.querySelector('h2');if(h&&/^(العملاء|الأشخاص|مرفقات الطلب الأصلية|قراءة البنود من الطلب)/.test(h.textContent.trim()))c.remove()})}
+ if(role==='admin'&&!S.roleWarnSeen){const d=document.createElement('div');d.className='note';d.style.cssText='margin-bottom:12px';d.innerHTML=ROLE_WARN+' <button class="b s" onclick="S.roleWarnSeen=1;save();render()">فهمت</button>';m.prepend(d)}}
+const _tSet0=tSet;tSet=function(){return _tSet0()+listsCard()+rolesCard()};
 function roleTab(k,t,v){const c=S.roleCfg[k];c.tabs=c.tabs.filter(x=>x!==t);if(v)c.tabs.push(t);save()}
 function roleSec(k,t,v){const c=S.roleCfg[k];c.sec=c.sec.filter(x=>x!==t);if(v)c.sec.push(t);save()}
 function roleFlag(k,f,v){S.roleCfg[k][f]=v;save()}
@@ -1387,6 +1413,95 @@ ${Object.keys(ROLE_DEF).map(k=>{const c=S.roleCfg[k];return `<tr><td><b>${ROLE_N
 <div class="row" style="margin-top:8px"><button class="b o s" onclick="roleReset()">رجوع للافتراضي</button></div></div>`}
 function secSetRole(name,role){const db=usersDb();const u=db.users.find(x=>x.name===name);if(!u)return;if(u.role==='admin'&&role!=='admin'&&db.users.filter(x=>x.role==='admin').length<2)throw new Error('لازم يفضل مدير واحد على الأقل');u.role=ROLE_NAME[role]?role:'user';saveUsersDb(db)}
 function uiRole(n,r){try{secSetRole(n,r);render()}catch(e){alert(e.message);render()}}
+
+/* ---- list editor (admin, Settings) ---- */
+const LST_TITLES={status:'حالات الطلب',shipst:'حالات الشحنة',cats:'تخصصات الموردين المحليين',curs:'عملات الشيكات والفواتير'};
+function lstUsage(key,n){let c=0;S.rfqs.forEach(r=>{if(key==='status'&&r.status===n)c++;if(key==='shipst')(r.shp||[]).forEach(x=>{if(x.state===n)c++});if(key==='curs'){(r.chq||[]).forEach(x=>{if((x.cur||'')===n)c++});(r.pinv||[]).forEach(x=>{if((x.cur||'')===n)c++})}});if(key==='cats')(S.lsup||[]).forEach(x=>{if((x.cat||'').trim()===n)c++});return c}
+function lstMap(key,from,to){S.rfqs.forEach(r=>{if(key==='status'&&r.status===from)r.status=to;if(key==='shipst')(r.shp||[]).forEach(x=>{if(x.state===from)x.state=to});if(key==='curs'){(r.chq||[]).forEach(x=>{if((x.cur||'')===from)x.cur=to});(r.pinv||[]).forEach(x=>{if((x.cur||'')===from)x.cur=to})}});if(key==='cats')(S.lsup||[]).forEach(x=>{if((x.cat||'').trim()===from)x.cat=to})}
+function lstName(key,i,v){const L=S.lists[key];v=String(v||'').trim();if(key==='curs')v=v.toUpperCase();const o=L[i];if(!v||L.some((x,j)=>j!==i&&x.n===v)){alert(!v?'الاسم فاضي.':'الاسم ده موجود في القايمة.');render();return}const old=o.n;if(old===v)return;o.n=v;lstMap(key,old,v);save();render()}
+function lstMove(key,i,d){const L=S.lists[key],j=i+d;if(j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];save();render()}
+function lstAdd(key){const L=S.lists[key];let b=({status:'حالة جديدة',shipst:'حالة جديدة',cats:'تخصص جديد',curs:'NEW'})[key],n=b,k=1;while(L.some(x=>x.n===n))n=b+' '+(++k);const o={n};if(key==='status'){o.k='c'+uid();o.qc=0;o.dn=0}if(key==='shipst')o.k='c'+uid();L.push(o);save();render()}
+function lstFlag(i,f,v){S.lists.status[i][f]=v?1:0;save();render()}
+function lstDel(key,i){const L=S.lists[key],o=L[i];if(o.k&&!/^c/.test(o.k)){alert('دي حالة نظام مربوطة بالحركة التلقائية: تقدر تغيّر اسمها بس.');return}const u=lstUsage(key,o.n);
+ if(u>0){const others=L.filter((x,j)=>j!==i);const blank=(key==='cats'||key==='curs');const menu=(blank?['0) (فاضي)']:[]).concat(others.map((x,j)=>(j+1)+') '+x.n)).join('\n');const a=prompt(u+' سجل مستخدم "'+o.n+'". اكتب رقم القيمة اللي هتتنقل لها (أو Cancel للإلغاء):\n'+menu);if(a==null)return;const idx=parseInt(a,10);let to;if(blank&&idx===0)to='';else if(idx>=1&&idx<=others.length)to=others[idx-1].n;else{alert('رقم غير صحيح. اتلغى الحذف.');return}lstMap(key,o.n,to)}
+ else if(!confirm('حذف "'+o.n+'"؟'))return;L.splice(i,1);save();render()}
+function listsCard(){if(myRole()!=='admin')return '';listsEnsure();const L=S.lists;
+ const row=(key,o,i)=>{const sys=o.k&&!/^c/.test(o.k);return `<tr><td><input value="${esc(o.n)}" onchange="lstName('${key}',${i},this.value)"></td>${key==='status'?`<td style="text-align:center"><input type="checkbox" style="width:auto" ${o.qc?'checked':''} onchange="lstFlag(${i},'qc',this.checked)"></td><td style="text-align:center"><input type="checkbox" style="width:auto" ${o.dn?'checked':''} onchange="lstFlag(${i},'dn',this.checked)"></td>`:''}<td style="white-space:nowrap"><button class="b s o" onclick="lstMove('${key}',${i},-1)">▲</button> <button class="b s o" onclick="lstMove('${key}',${i},1)">▼</button> ${sys?'<span class="tag t-gr" title="حالة نظام: تتسمى بس">نظام</span>':`<button class="b s r" onclick="lstDel('${key}',${i})">حذف</button>`}</td></tr>`};
+ const tb=key=>`<div style="margin-bottom:14px"><h3 style="margin:8px 0">${LST_TITLES[key]}</h3><table><tr><th>الاسم</th>${key==='status'?'<th>مقفول للتسعير</th><th>منتهي</th>':''}<th></th></tr>${L[key].map((o,i)=>row(key,o,i)).join('')}</table><button class="b o s" style="margin-top:6px" onclick="lstAdd('${key}')">+ إضافة</button></div>`;
+ return `<div class="card"><h2>قوايم الاختيار (للمدير)</h2><p class="muted">غيّر الاسم وكل الطلبات والسجلات بتتحدّث لوحدها. حالات النظام (مربوطة بالحركة التلقائية: الشراء والشحن والتسليم وصرف الشيكات) تتسمى وتتحرك بس ومتتحذفش. "مقفول للتسعير" يعني الطلب خرج من مرحلة جمع العروض، و"منتهي" يعني خلص وينزل آخر اللوحة. حذف عنصر مستخدم بيسألك تنقل سجلاته لإيه.</p>${['status','shipst','cats','curs'].map(tb).join('')}</div>`}
+
+const _tLsup0=tLsup;tLsup=function(){listsEnsure();return `<datalist id="lscats">${S.lists.cats.map(c=>`<option value="${esc(c.n)}">`).join('')}</datalist>`+_tLsup0()};
+
+
+/* ---- Arabic issue mode (auto-generated from the English company template) ---- */
+const AR_LAB={'technical offer':'عرض فني','financial offer':'عرض مالي','to':'إلى','from':'من','title':'العنوان','subject':'الموضوع','date':'التاريخ','dear sirs,':'السادة المحترمين،','dear sirs':'السادة المحترمين،','ref. to subject, we have pleasure to submit our offer as below:':'بالإشارة إلى الموضوع أعلاه، يسعدنا أن نقدم لسيادتكم عرضنا كما يلي:','item.':'م','item':'البند','itemno.':'م','no':'رقم','no.':'رقم','description':'الوصف','qty':'الكمية','unit price':'سعر الوحدة','total':'الإجمالي','terms & conditions:':'الشروط والأحكام:','general conditions:':'الشروط العامة:','prices:':'الأسعار:','offer validity:':'مدة سريان العرض:','payment:':'الدفع:','delivery period:':'مدة التسليم:'};
+const AR_PFX=[[/^inquiry no\.?\s*/i,'رقم الاستفسار '],[/^currency\s*:\s*/i,'العملة: '],[/^country origin\s*:\s*/i,'بلد المنشأ: '],[/^offer validity\s*:\s*/i,'مدة سريان العرض: '],[/^delivery time\s*:\s*/i,'مدة التسليم: '],[/^delivery term\s*:\s*/i,'شروط التسليم: '],[/^payment\s*:\s*/i,'الدفع: '],[/^total\s*:\s*/i,'الإجمالي: ']];
+const AR_CUR={euro:'اليورو',eur:'اليورو',usd:'الدولار',dollar:'الدولار','us dollar':'الدولار الأمريكي',egp:'الجنيه المصري','egyptian pound':'الجنيه المصري'};
+function arVal(s){const t=s.trim();let m;
+ if(m=t.match(/^are in\s+([A-Za-z ]+?)\s*,\s*(CIP|CIF|FOB|EXW|DAP|DDP|CFR|FCA)\s+(.+?)\.?$/i)){const c=AR_CUR[m[1].toLowerCase()]||m[1];const pl=/^cairo airport$/i.test(m[3])?'مطار القاهرة':m[3];return 'الأسعار بـ'+c+'، '+m[2].toUpperCase()+' '+pl+'.'}
+ if(m=t.match(/^(\d+)\s*months?\s+from date of submittal\.?$/i))return (m[1]==='1'?'شهر واحد':m[1]==='2'?'شهران':m[1]+' أشهر')+' من تاريخ تقديم العرض.';
+ if(m=t.match(/^(\d+)\s*%\s*CAD\.?$/i))return m[1]+'% نقداً مقابل المستندات (CAD).';
+ if(m=t.match(/^(\d+)\s*[:\-]\s*(\d+)\s*months?\.?$/i))return 'من '+m[1]+' إلى '+m[2]+' أشهر.';
+ if(m=t.match(/^(\d+)\s*weeks?\.?$/i))return m[1]+' أسابيع.';
+ if(m=t.match(/^(\d+)\s*months?\.?$/i))return (m[1]==='1'?'شهر واحد':m[1]==='2'?'شهران':m[1]+' أشهر')+'.';
+ if(m=t.match(/^(\d+)\s*%\s*cash against documents?\.?$/i))return m[1]+'% نقداً مقابل المستندات.';
+ if(m=t.match(/^(CIP|CIF|FOB|EXW|DAP|DDP|CFR|FCA)\s+(.+?)\.?$/i)){const P={'alexandria seaport':'ميناء الإسكندرية','cairo airport':'مطار القاهرة','cairo':'القاهرة','alexandria':'الإسكندرية'};return m[1].toUpperCase()+' '+(P[m[2].toLowerCase()]||m[2])+'.'}
+ return null}
+function arTr(text){const n=text.replace(/\s+/g,' ').trim();if(!n)return null;const k=n.toLowerCase();if(AR_LAB[k])return AR_LAB[k];if(AR_LAB[k.replace(/ /g,'')])return AR_LAB[k.replace(/ /g,'')];
+ for(const [re,rep] of AR_PFX){const m=n.match(re);if(m){const rest=n.slice(m[0].length);return (rep+(arVal(rest)||rest)).trim()}}
+ return arVal(n)}
+const AR_D='٠١٢٣٤٥٦٧٨٩';
+function arDig(s){return s.replace(/[0-9]/g,d=>AR_D[+d]).replace(/\./g,'٫').replace(/,/g,'٬')}
+function arPPr(p){if(/<w:bidi w:val="0"\s*\/>/.test(p))return p.replace(/<w:bidi w:val="0"\s*\/>/g,'<w:bidi/>');
+ if(/<w:bidi\s*\/>/.test(p))return p;
+ const later=/<w:(adjustRightInd|snapToGrid|spacing|ind|contextualSpacing|mirrorIndents|suppressOverlap|jc|textDirection|textAlignment|textboxTightWrap|outlineLvl|divId|cnfStyle|rPr|sectPr|pPrChange)[ \/>]/;
+ const m=p.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/);
+ if(!m){return p.replace(/^(<w:p(?:\s[^>]*)?>)/,'$1<w:pPr><w:bidi/></w:pPr>')}
+ let inner=m[1];const lm=inner.match(later);const i=lm?inner.indexOf(lm[0]):inner.length;inner=inner.slice(0,i)+'<w:bidi/>'+inner.slice(i);return p.replace(m[0],'<w:pPr>'+inner+'</w:pPr>')}
+function arDoc(xml,digits){
+ xml=xml.replace(/<w:p[ >][\s\S]*?<\/w:p>/g,p=>{
+  const ts=[...p.matchAll(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g)];
+  if(ts.length){const raw=ts.map(m=>m[1]).join('');const dec=raw.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'");
+   let tr=arTr(dec);if(tr==null&&digits&&/^[\d\s.,:%\/\-+]+$/.test(dec)&&/\d/.test(dec))tr=dec;
+   if(tr==null&&/^\s{8,}\S/.test(dec)){tr=dec.trim();p=p.replace(/<w:jc w:val="\w+"\s*\/>/,'');p=p.replace(/<w:rPr>/,'<w:jc w:val="right"/><w:rPr>')}
+   if(tr!=null){if(digits)tr=tr.replace(/\d+(?:[.,]\d+)*/g,x=>arDig(x));const enc=tr.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');let first=true;
+    p=p.replace(/<w:t(?:\s[^>]*)?>[^<]*<\/w:t>/g,()=>{if(first){first=false;return '<w:t xml:space="preserve">'+enc+'</w:t>'}return '<w:t></w:t>'})}}
+  return arPPr(p)});
+ xml=xml.replace(/<w:tbl>[\s\S]*?<\/w:tbl>/g,t=>{const g=[...t.matchAll(/<w:gridCol w:w="(\d+)"/g)].map(m=>+m[1]);if(g.length<2)return t;const mx=Math.max(...g);if(mx<3000)return t;const sm=g.filter(w=>w<1000&&w>200);if(!sm.length)return t;const add=320;let tot=0;let o=t;[...new Set(sm)].forEach(w=>{const c=g.filter(x=>x===w).length;tot+=c*add;o=o.split('w:w="'+w+'"').join('w:w="'+(w+add)+'"')});o=o.split('w:w="'+mx+'"').join('w:w="'+(mx-tot)+'"');return o});
+ xml=xml.replace(/<w:tblPr>([\s\S]*?)<\/w:tblPr>/g,(m,inner)=>/<w:bidiVisual/.test(inner)?m:'<w:tblPr>'+(/<w:tblStyle [^>]*\/>/.test(inner)?inner.replace(/(<w:tblStyle [^>]*\/>)/,'$1<w:bidiVisual/>'):'<w:bidiVisual/>'+inner)+'</w:tblPr>');
+ return xml}
+function rLang(r){return r&&r.lang==='ar'?'ar':'en'}
+function arPost(r,xml){return rLang(r)==='ar'?arDoc(xml,!!r.arDigits):xml}
+function langBox(){const r=R();return `<label style="width:150px">لغة العرض<select onchange="R().lang=this.value;save();render()"><option value="en" ${rLang(r)==='en'?'selected':''}>English</option><option value="ar" ${rLang(r)==='ar'?'selected':''}>عربي</option></select></label>${rLang(r)==='ar'?`<label style="flex-direction:row;align-items:center;gap:6px;width:auto"><input type="checkbox" style="width:auto" ${r.arDigits?'checked':''} onchange="R().arDigits=this.checked;save();render()"> أرقام عربية (٠١٢)</label><div class="note" style="width:100%;font-size:12px">النسخة العربية بتتولد من قالب الشركة الإنجليزي: العناوين الثابتة والشروط الافتراضية المعروفة بتتترجم، والتوقيع والاسم بيتاخدوا من حقول الشركة العربية (قوالب الشركات). أي شرط بتكتبه بإيدك بعربي بيطلع زي ما هو. الهيدر والفوتر والختم صور القالب زي ما هي. راجع الملف في Word قبل الإرسال.</div>`:''}`}
+
+/* ---- in-app update notice (hosted only): compares BUILD_ID with version.json on the site ---- */
+const BUILD_ID='202611260321';
+let UPD={shown:false,v:null};
+async function updCheck(){if(UPD.shown||BUILD_ID.indexOf('@@')===0||!synHosted())return;
+ try{const r=await fetch('version.json?_='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();if(!j||!j.v||String(j.v)===BUILD_ID)return;UPD.shown=true;UPD.v=j.v;updShow(j)}catch(e){}}
+function updShow(j){const d=document.createElement('div');d.id='updbar';d.dir='rtl';d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9998;background:#1f4e79;color:#fff;padding:10px 14px;font-size:14px;box-shadow:0 2px 10px #0006';
+ const notes=(j.notes||[]).map(n=>'<li>'+esc(n)+'</li>').join('');
+ d.innerHTML=`<b>فيه نسخة جديدة من البرنامج.</b> <button class="b g s" onclick="updGo()">حدّث دلوقتي</button> <button class="b o s" onclick="document.getElementById('updbar').remove()">بعدين</button> <a href="#" style="color:#ffd966;margin-inline-start:8px" onclick="document.getElementById('updmore').style.display='block';return false">إيه الجديد وإزاي أحدّث</a><div id="updmore" style="display:none;margin-top:8px;font-size:13px"><ul style="margin:4px 18px 6px 0;padding:0">${notes}</ul>الزرار بيحفظ شغلك الأول (وبيرفعه على جوجل درايف لو المزامنة شغالة) وبعدين بيحمّل النسخة الجديدة. بياناتك على الجهاز متتمسحش. لو الصفحة فضلت قديمة: اضغط Ctrl+Shift+R (على الموبايل: اقفل التاب وافتحه تاني من اللينك). <b>متمسحش "بيانات الموقع" من المتصفح</b> لأنها فيها بياناتك المحلية.</div>`;document.body.appendChild(d)}
+async function updGo(){const b=document.querySelector('#updbar .b.g');if(b){b.disabled=true;b.textContent='بيحفظ...'}
+ try{await flush();if(typeof synMeta==='function'&&synMeta().cid&&synMeta().dirty&&SYN.tok&&Date.now()<SYN.exp){await Promise.race([synPush(false),new Promise(r=>setTimeout(r,8000))])}}catch(e){}
+ try{if(window.caches){const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}}catch(e){}
+ try{if(navigator.serviceWorker){const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.unregister()))}}catch(e){}
+ location.replace(location.pathname+'?v='+encodeURIComponent(UPD.v||Date.now()))}
+const _synInit1=synInit;synInit=function(){_synInit1();setTimeout(updCheck,4000);setInterval(updCheck,30*60*1000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)updCheck()})};
+
+/* ---- extra issuing companies (admin): a new company starts as a copy of an existing company's templates ---- */
+function cosEnsure(){if(!S||typeof PRDOCS==='undefined'||!PRDOCS||!PDEF.platform)return;(S.cos||[]).forEach(c=>{if(!PDEF[c.id]&&PDEF[c.base]&&PRDOCS[c.base]){const d=JSON.parse(JSON.stringify(PDEF[c.base]));d.label=c.label;d.custom=1;d.fields=Object.assign({},d.fields,{nameEn:c.label,fromName:c.label,signerEn:'',titleEn:'',companyAr:'',titleAr:'',signAr:''});PDEF[c.id]=d;PRDOCS[c.id]=PRDOCS[c.base]}})}
+function coAdd(){const n=(document.getElementById('conm').value||'').trim(),b=document.getElementById('cobase').value;if(!n)return alert('اكتب اسم الشركة.');if(Object.keys(PDEF).some(k=>PDEF[k].label.toLowerCase()===n.toLowerCase()))return alert('الاسم ده موجود.');
+ S.cos=S.cos||[];const id='co_'+uid();S.cos.push({id,label:n,base:b});cosEnsure();TPLSEL=id;save();render()}
+async function coDel(id){const used=S.rfqs.filter(r=>r.company===id).length+(S.companyDef===id?1:0);if(used)return alert('الشركة دي مستخدمة في '+used+' طلب/إعداد. غيّر الشركة فيهم الأول.');if(!confirm('حذف الشركة "'+PDEF[id].label+'" وكل صورها وتعديلاتها؟'))return;
+ const o=S.prof[id];if(o&&o.media)for(const k of Object.keys(o.media))try{await delFile(o.media[k])}catch(e){}
+ delete S.prof[id];S.cos=(S.cos||[]).filter(c=>c.id!==id);delete PDEF[id];delete PRDOCS[id];TPLSEL='platform';save();render()}
+function coCard(){if(myRole()!=='admin')return '';const base=PIDS().filter(p=>!PDEF[p].custom);const cu=PIDS().filter(p=>PDEF[p].custom);
+ return `<div class="card"><h2>شركات الإصدار (إضافة شركة)</h2><p class="muted">الشركة الجديدة بتبدأ بنسخة من قالب شركة موجودة (الفني والتفويض بنفس الهيكل)، وبعدين من نفس الصفحة فوق غيّر الاسم والموقّع والصور (الهيدر والختم والتوقيع) والشروط. بتظهر في كل قوايم اختيار الشركة، وبتتحفظ مشفرة مع المزامنة. مبتتحذفش لو مستخدمة في طلب. الهيكل (ترتيب الفقرات والجدول) بيفضل زي قالب الأساس، ولو عايز قالب Word مختلف خالص ده مش متاح لسه. أسماء الموقّع والوظيفة والاسم العربي بتبدأ فاضية: املاها قبل أول إصدار.</p>
+ <div class="row"><label>اسم الشركة الجديدة<input id="conm" placeholder="مثال: Candies"></label><label>نسخ قالب من<select id="cobase">${base.map(p=>`<option value="${p}">${esc(PDEF[p].label)}</option>`).join('')}</select></label><button class="b g" onclick="coAdd()">+ إضافة شركة</button></div>
+ ${cu.length?`<table style="margin-top:8px"><tr><th>الشركة</th><th>منسوخة من</th><th></th></tr>${cu.map(p=>{const c=(S.cos||[]).find(x=>x.id===p)||{};return `<tr><td>${esc(PDEF[p].label)}</td><td>${esc((PDEF[c.base]||{}).label||'')}</td><td><button class="b s r" onclick="coDel('${p}')">حذف</button></td></tr>`}).join('')}</table>`:''}</div>`}
+const _tTpl0=tTpl;tTpl=function(){cosEnsure();return _tTpl0()+coCard()};
+const _listsEnsure0=listsEnsure;listsEnsure=function(){cosEnsure();return _listsEnsure0()};
 
 /* ---------- supplier finder ---------- */
 function mountSF(){const h=document.getElementById('sfhost');if(h.firstChild)return;const fr=document.createElement('iframe');fr.srcdoc=document.getElementById('sf-src').textContent.replace(/<\\\/script/g,'</script');h.appendChild(fr)}
