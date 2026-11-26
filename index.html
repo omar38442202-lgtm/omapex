@@ -884,7 +884,7 @@ async function buildFin(r){const pid=rpid(r);const tpl=addFinCols(PRDOCS[pid].te
  const rows=techItems(r).map((i,k)=>tpl.rowTpl.replace('@@NO@@',()=>xe(i.no)).replace('@@QTY@@',()=>xe(i.qty)).replace('@@UP@@',()=>xe(f2(F.rows[k].up))).replace('@@TT@@',()=>xe(f2(F.rows[k].tt))).replace('@@DESC@@',()=>(i.lines.length?i.lines:['']).map(l=>tpl.linePara.replace('@@LINE@@',()=>xe(l))).join(''))).join('');
  const totL=['Total: '+f2(F.tot)+' '+cur];
  if(F.vatMode==='add'){totL.push('VAT '+F.vatPc+'%: '+f2(F.vatAmt)+' '+cur);totL.push('Grand Total including VAT: '+f2(F.grand)+' '+cur)}
- totL.push(vatStatement(r));
+ totL.push(vatStatement(r));totL.push(shipLine(r,rLang(r)==='ar'));
  const totP=totL.map(l=>tpl.linePara.replace('@@LINE@@',()=>xe(l))).join('');
  const fixT=s=>s.replace(/Technical\s+Offer/gi,'Financial Offer');
  const xml=tpl.head+fixT(fillTok(tpl.pre,m))+tpl.tblHead+rows+tpl.tblTail+totP+fixT(fillTok(tpl.post,m));z.file('word/document.xml',arPost(r,xml));await applyOv(z,pid,'tech');
@@ -899,7 +899,9 @@ function tFin(){const r=R();const {res}=analyse(r);const F=finTotals(r);const pi
 <div class="row">${compSel("R().company=this.value;save();render()",pid)}<label>المورد المختار<select onchange="R().finSup=this.value;save();render()"><option value="">اختر</option>${res.map(x=>`<option value="${x.q.id}" ${r.finSup===x.q.id?'selected':''}>${esc(x.q.supplier)}</option>`).join('')}</select></label>
 <label>هامش الربح %<input style="width:90px" value="${esc(r.margin||'')}" oninput="R().margin=this.value;save()" onchange="render()"></label><label>العملة المكتوبة في العرض<input style="width:90px" value="${esc(r.finCur||S.baseCur)}" oninput="R().finCur=this.value;save()"></label>
 <label>ضريبة القيمة المضافة<select onchange="R().finVatMode=this.value;save();render()">${[['excl','غير شاملة (في الشروط بس)'],['add','تضاف على الإجمالي (زي هامش الربح)'],['incl','شاملة الضريبة']].map(o=>`<option value="${o[0]}" ${vatMode(r)===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select></label>
-<label>نسبة الضريبة %<input style="width:70px" value="${esc(vatPc(r))}" oninput="R().finVat=this.value;save()" onchange="render()"></label></div>
+<label>نسبة الضريبة %<input style="width:70px" value="${esc(vatPc(r))}" oninput="R().finVat=this.value;save()" onchange="render()"></label>
+<label>الشحن (Incoterm)<select onchange="R().incoterm=this.value;save();render()">${INCOT.map(x=>`<option value="${x[0]}" ${incot(r)===x[0]?'selected':''}>${x[0]} — ${esc(x[1])}</option>`).join('')}</select></label></div>
+<p class="muted" style="margin-top:4px">${esc(incotX(r)[0])}: ${esc(incotX(r)[3])} <details style="display:inline"><summary style="display:inline;cursor:pointer;color:var(--ac,#2a7)">كل الشروط وشرحها</summary><div style="direction:rtl;text-align:right;margin-top:6px">${INCOT.map(x=>`<div style="margin-bottom:4px"><b>${x[0]}</b> — ${esc(x[1])}: ${esc(x[3])}</div>`).join('')}</div></details></p>
 <p class="muted">لو العرض بعملة غير عملة الأساس (${esc(S.baseCur)}) اكتب العملة الصحيحة هنا بعد ما تتأكد إن الأسعار محوّلة بسعر الصرف اللي في الإعدادات.</p>
 <div class="row">${langBox()}<button class="b g" onclick="issueFin()">تنزيل Word</button><button class="b" onclick="issueFinPdf()">PDF تقريبي (من المتصفح)</button><button class="b o" onclick="finPreview()">معاينة</button></div>
 <div class="scroll"><table style="margin-top:10px"><tr><th>م</th><th>الوصف</th><th>الكمية</th><th>تكلفة الوحدة</th><th>سعر البيع للوحدة (قابل للتعديل)</th><th>الإجمالي</th></tr>${r.items.map((it,i)=>{const c=F.x&&F.x.per[it.id];return `<tr><td style="width:70px"><input value="${esc(it.no)}" oninput="R().items[${i}].no=this.value;save()"></td><td>${esc(it.desc)}</td><td>${esc(it.qty)}</td><td>${c==null||isNaN(c)?'-':c.toFixed(2)}</td><td style="width:140px"><input value="${esc(((r.finP||{})[it.id]!=null)?r.finP[it.id]:(isNaN(F.rows[i].up)?'':F.rows[i].up.toFixed(2)))}" oninput="(R().finP=R().finP||{})['${it.id}']=this.value;save()" onchange="render()"></td><td>${f2(F.rows[i].tt)||'-'}</td></tr>`}).join('')}<tr><td colspan="5"><b>الإجمالي</b></td><td><b>${f2(F.tot)}</b></td></tr>${F.vatMode==='add'?`<tr><td colspan="5">ضريبة القيمة المضافة (${F.vatPc}%)</td><td>${f2(F.vatAmt)}</td></tr><tr><td colspan="5"><b>الإجمالي شامل الضريبة</b></td><td><b>${f2(F.grand)}</b></td></tr>`:''}</table></div>
@@ -1467,7 +1469,8 @@ function arTr(text){const n=text.replace(/\s+/g,' ').trim();if(!n)return null;co
  return arVal(n)}
 const AR_D='٠١٢٣٤٥٦٧٨٩';
 function arDig(s){return s.replace(/[0-9]/g,d=>AR_D[+d]).replace(/\./g,'٫').replace(/,/g,'٬')}
-function arPPr(p){if(/<w:bidi w:val="0"\s*\/>/.test(p))return p.replace(/<w:bidi w:val="0"\s*\/>/g,'<w:bidi/>');
+function arPPr(p){if(/<w:bidi w:val="0"\s*\/>/.test(p)){p=p.replace(/<w:bidi w:val="0"\s*\/>/g,'<w:bidi/>');
+  p=p.replace(/<w:ind\b[^>]*\/>/g,m=>/w:right=/.test(m)?m:m.replace(/w:left="(\d+)"/,'w:right="$1"'));return p}
  if(/<w:bidi\s*\/>/.test(p))return p;
  const later=/<w:(adjustRightInd|snapToGrid|spacing|ind|contextualSpacing|mirrorIndents|suppressOverlap|jc|textDirection|textAlignment|textboxTightWrap|outlineLvl|divId|cnfStyle|rPr|sectPr|pPrChange)[ \/>]/;
  const m=p.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/);
@@ -1478,7 +1481,9 @@ function arDoc(xml,digits){
   const ts=[...p.matchAll(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g)];
   if(ts.length){const raw=ts.map(m=>m[1]).join('');const dec=raw.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'");
    let tr=arTr(dec);if(tr==null&&digits&&/^[\d\s.,:%\/\-+]+$/.test(dec)&&/\d/.test(dec))tr=dec;
-   if(tr==null&&/^\s{8,}\S/.test(dec)){tr=dec.trim();p=p.replace(/<w:jc w:val="\w+"\s*\/>/,'');p=p.replace(/<w:rPr>/,'<w:jc w:val="right"/><w:rPr>')}
+   const isVal=/^\s{8,}\S/.test(dec);
+   if(tr==null&&isVal)tr=dec.trim();
+   if(isVal){p=p.replace(/<w:jc w:val="\w+"\s*\/>/g,'');p=p.replace(/<w:ind\b[^>]*\/>/g,'');p=p.replace(/<w:rPr>/,'<w:ind w:right="720"/><w:rPr>')}
    if(tr!=null){if(digits)tr=tr.replace(/\d+(?:[.,]\d+)*/g,x=>arDig(x));const enc=tr.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');let first=true;
     p=p.replace(/<w:t(?:\s[^>]*)?>[^<]*<\/w:t>/g,()=>{if(first){first=false;return '<w:t xml:space="preserve">'+enc+'</w:t>'}return '<w:t></w:t>'})}}
   return arPPr(p)});
@@ -1490,7 +1495,7 @@ function arPost(r,xml){return rLang(r)==='ar'?arDoc(xml,!!r.arDigits):xml}
 function langBox(){const r=R();return `<label style="width:150px">لغة العرض<select onchange="R().lang=this.value;save();render()"><option value="en" ${rLang(r)==='en'?'selected':''}>English</option><option value="ar" ${rLang(r)==='ar'?'selected':''}>عربي</option></select></label>${rLang(r)==='ar'?`<label style="flex-direction:row;align-items:center;gap:6px;width:auto"><input type="checkbox" style="width:auto" ${r.arDigits?'checked':''} onchange="R().arDigits=this.checked;save();render()"> أرقام عربية (٠١٢)</label><div class="note" style="width:100%;font-size:12px">النسخة العربية بتتولد من قالب الشركة الإنجليزي: العناوين الثابتة والشروط الافتراضية المعروفة بتتترجم، والتوقيع والاسم بيتاخدوا من حقول الشركة العربية (قوالب الشركات). أي شرط بتكتبه بإيدك بعربي بيطلع زي ما هو. الهيدر والفوتر والختم صور القالب زي ما هي. راجع الملف في Word قبل الإرسال.</div>`:''}`}
 
 /* ---- in-app update notice (hosted only): compares BUILD_ID with version.json on the site ---- */
-const BUILD_ID='202611261307';
+const BUILD_ID='202611261545';
 let UPD={shown:false,v:null};
 async function updCheck(){if(UPD.shown||BUILD_ID.indexOf('@@')===0||!synHosted())return;
  try{const r=await fetch('version.json?_='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();if(!j||!j.v||String(j.v)===BUILD_ID)return;UPD.shown=true;UPD.v=j.v;updShow(j)}catch(e){}}
@@ -1781,6 +1786,43 @@ function combCardF(){const pid=TPLSEL;const o=pov(pid);const c=o.comb;
  else inner=`<p class="muted">مفيش قالب شامل لـ ${esc(PDEF[pid].label)} لسه.</p><div class="row"><label class="b" style="cursor:pointer;flex-direction:row;justify-content:center">رفع ملف العرض الشامل (docx)<input type="file" accept=".docx" style="display:none" onchange="combImport(this)"></label></div>`;
  return `<div class="card"><h2>قالب عرض سعر شامل (فني + مالي في ملف واحد)</h2><p class="muted">للشركات اللي بتقدم عرض واحد فيه البنود والأسعار مع بعض. ارفع ملف Word من عندك: البرنامج بياخد شكل الملف بس (الهيكل والهيدر والفوتر والصور بتاعت الملف نفسه)، وبيحوّل جدول البنود والعميل والرقم والتاريخ والشروط لحقول بتتملى من الطلب. الأسعار بتتجي من المورد المختار + هامش الربح في تبويب العرض المالي. <b>راجع بمعاينة قبل أول إصدار</b> — التعرف على أماكن الحقول تلقائي وممكن يحتاج تظبيط لو الملف مختلف عن المعتاد.</p>${inner}</div>`}
 const _tTpl3=tTpl;tTpl=function(){return _tTpl3()+combCardF()};
+/* ---- migration for templates stored by older builds: literal date + lost stamp ---- */
+function combTplMigrate(tpl,r){const fix=s=>{if(!s)return s;return s.replace(/<w:p[ >][\s\S]*?<\/w:p>/g,p=>{
+  if(p.indexOf('@@DATE@@')>=0)return p;const t=ptxt(p);if(!/تاريخ|التوقيع/.test(t))return p;
+  const hit=replaceDateInPara(p);if(!hit)return p;
+  const d=new Date();const sep=hit.sep;const dd=String(d.getDate()).padStart(2,'0'),mm=String(d.getMonth()+1).padStart(2,'0'),yy=d.getFullYear();
+  const orig=t.match(/\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}|\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}/);const yfirst=orig&&/^\d{4}/.test(orig[0]);
+  const str=r.date||(yfirst?yy+sep+mm+sep+dd:dd+sep+mm+sep+yy);
+  return hit.xml.replace('@@DATE@@',()=>xe(str))})};
+ return {pre:fix(tpl.pre),post:fix(tpl.post)}}
+async function combStampMend(z,pid){try{
+ const doc=await z.file('word/document.xml').async('string');const reln='word/_rels/document.xml.rels';
+ const rels=z.file(reln)?await z.file(reln).async('string'):'';
+ const tg={};for(const m of rels.matchAll(/<Relationship [^>]*>/g)){const id=(m[0].match(/Id="([^"]+)"/)||[])[1],t=(m[0].match(/Target="([^"]+)"/)||[])[1];if(id&&t)tg[id]=t}
+ const draws=[];for(const m of doc.matchAll(/<w:drawing>[\s\S]*?<\/w:drawing>/g)){const em=(m[0].match(/r:embed="([^"]+)"/)||[])[1];const ext=m[0].match(/<wp:extent cx="(\d+)" cy="(\d+)"/);if(em&&ext)draws.push({id:em,cx:+ext[1]})}
+ if(draws.some(d=>d.cx>=457200))return; /* a normal-size image exists: nothing to mend */
+ const o=S.prof[pid]||{};const img=o.img||{};const on=o.imgOn||{};
+ const role=(img.stampsig&&on.stampsig!==0)?'stampsig':(img.stamp&&on.stamp!==0)?'stamp':(img.sign&&on.sign!==0)?'sign':null;
+ if(!role)return;const b=await getFile(img[role]);if(!b)return;
+ const dim=(o.imgDim||{})[role];const ar=dim&&dim[0]?dim[1]/dim[0]:0.6;
+ const wIn=role==='stampsig'?2.6:role==='sign'?1.7:1.5;
+ const cx=Math.round(wIn*914400),cy=Math.max(1,Math.round(wIn*ar*914400));
+ if(draws.length){ /* tiny leftover from an old import: reuse it */
+  const d0=draws[0];const path=tg[d0.id]&&('word/'+tg[d0.id].replace(/^\.?\/?/,''));
+  if(path&&z.file(path)){z.file(path,await imgToFormat(b,path))}
+  let xml=await z.file('word/document.xml').async('string');xml=patchDrawSize(xml,d0.id,wIn,ar);z.file('word/document.xml',xml);return}
+ /* no body drawing at all: insert one anchored beside the date/signature line */
+ const path='word/media/mend_stamp.png';z.file(path,await imgFadedRaw(b));
+ const ids=[...rels.matchAll(/Id="rId(\d+)"/g)].map(m=>+m[1]);const rid='rId'+(Math.max(0,...ids)+1);
+ z.file(reln,rels.replace('</Relationships>','<Relationship Id="'+rid+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/mend_stamp.png"/></Relationships>'));
+ const dr='<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" locked="0" layoutInCell="1" allowOverlap="1" relativeHeight="999" behindDoc="0"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="margin"><wp:align>left</wp:align></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>-274320</wp:posOffset></wp:positionV><wp:extent cx="'+cx+'" cy="'+cy+'"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapNone/><wp:docPr id="9901" name="mend_stamp"/><wp:cNvGraphicFramePr/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="mend_stamp.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="'+rid+'"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'+cx+'" cy="'+cy+'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r>';
+ let xml=await z.file('word/document.xml').async('string');
+ const paras=xml.match(/<w:p[ >][\s\S]*?<\/w:p>/g)||[];let tgt=null;
+ paras.forEach(p=>{const t=ptxt(p);if(/التوقيع/.test(t))tgt=p});
+ if(!tgt)paras.forEach(p=>{const t=ptxt(p);if(/تاريخ/.test(t))tgt=p});
+ if(tgt)xml=xml.replace(tgt,tgt.replace('</w:p>',dr+'</w:p>'));
+ z.file('word/document.xml',xml)}catch(e){console.warn('combStampMend',e)}}
+async function imgFadedRaw(b){const u=await imgToFormat(b,'x.png');return u instanceof Uint8Array?u:new Uint8Array(u)}
 /* ---- issuing ---- */
 async function buildComb(r){const pid=rpid(r);const c=(S.prof[pid]||{}).comb;if(!c)throw new Error('الشركة دي مفيهاش قالب عرض شامل. ارفعه من قوالب الشركات.');
  const blob=await getFile(c.docxId);if(!blob)throw new Error('ملف القالب مش موجود على الجهاز ده. ارفعه تاني.');
@@ -1789,14 +1831,17 @@ async function buildComb(r){const pid=rpid(r);const c=(S.prof[pid]||{}).comb;if(
  const m={CLIENT:r.client,DATE:combDate(r,c.defs),INQ:r.no,SUBJECT:r.subject,CNAME:pfield(pid,'companyAr')||pfield(pid,'nameEn'),INTRO:c.defs.INTRO||''};
  Object.keys(c.defs).forEach(k=>{if(/^T\d+$/.test(k))m[k]=c.defs[k]});
  let hasVat=0;Object.keys(c.defs).forEach(k=>{if(/^T\d+$/.test(k)&&/ضريبة/.test(c.defs[k])){m[k]=vatStatementAr(r);hasVat=1}});
+ let hasShip=0;Object.keys(c.defs).forEach(k=>{if(/^T\d+$/.test(k)&&/شحن|incoterm/i.test(c.defs[k])){m[k]=shipLine(r,true);hasShip=1}});
  const rows=r.items.map((it,k)=>{const up=F.rows[k]?F.rows[k].up:NaN,tt=F.rows[k]?F.rows[k].tt:NaN;
   return c.tpl.rowTpl.replace('@@NO@@',()=>xe(it.no)).replace('@@QTY@@',()=>xe(it.qty)).replace('@@UNIT@@',()=>xe(it.unit||'')).replace('@@UP@@',()=>xe(f2(up))).replace('@@TT@@',()=>xe(f2(tt))).replace('@@NOTES@@','').replace('@@DESC@@',()=>String(it.tdesc!=null?it.tdesc:it.desc).split(/\r?\n/).filter(x=>x.trim()).map(l=>c.tpl.linePara.replace('@@LINE@@',()=>xe(l))).join(''))}).join('');
  const vlines=[];
  if(F.vatMode==='add'){vlines.push('الإجمالي: '+f2(F.tot)+' '+cur);vlines.push('ضريبة القيمة المضافة '+F.vatPc+' %: '+f2(F.vatAmt)+' '+cur);vlines.push('الإجمالي شامل الضريبة: '+f2(F.grand)+' '+cur)}
  if(!hasVat)vlines.push(vatStatementAr(r));
+ if(!hasShip)vlines.push(shipLine(r,true));
  const vatP=vlines.map(l=>c.tpl.linePara.replace('@@LINE@@',()=>xe(l))).join('');
- const xml=c.tpl.head+fillTok(c.tpl.pre,m)+c.tpl.tblHead+rows+c.tpl.tblTail+vatP+fillTok(c.tpl.post,m);
- z.file('word/document.xml',xml);await applyOv(z,pid,'comb',1);
+ const mig=combTplMigrate(c.tpl,r);
+ const xml=c.tpl.head+fillTok(mig.pre,m)+c.tpl.tblHead+rows+c.tpl.tblTail+vatP+fillTok(mig.post,m);
+ z.file('word/document.xml',xml);await applyOv(z,pid,'comb',1);await combStampMend(z,pid);
  return z.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'})}
 async function issueComb(){const r=R();if(!finCheck(r))return;try{dl(await buildComb(r),'Quotation - '+(r.no||'draft').replace(/[^\w\-]/g,'_')+'.docx');r.finAt=todayStr();save()}catch(e){alert(e.message)}}
 async function combPreview(){const e=document.getElementById('fpvbox');if(!e)return;if(!R().finSup){e.innerHTML='<div class="muted">اختار المورد الأول.</div>';return}e.innerHTML='<div class="muted">بيجهز المعاينة...</div>';try{const b=await buildComb(R());const box=document.createElement('div');await renderDoc(b,box);e.innerHTML='';e.appendChild(box)}catch(err){e.innerHTML='<div class="note">تعذرت المعاينة: '+esc(err.message)+'</div>'}}
@@ -1842,8 +1887,13 @@ function patchWmDraw(xml,path,rels){const ids=[];for(const m of rels.matchAll(/<
  return xml.replace(/<w:drawing>[\s\S]*?<\/w:drawing>/g,d=>{const em=(d.match(/r:embed="([^"]+)"/)||[])[1];if(!em||ids.indexOf(em)<0)return d;
   if(/<wp:anchor /.test(d)&&!/behindDoc=/.test(d))d=d.replace('<wp:anchor ','<wp:anchor behindDoc="1" ');
   d=d.replace(/<wp:(wrapTight|wrapThrough)\b[\s\S]*?<\/wp:\1>/,'<wp:wrapNone/>');
-  if(!/<a:alphaModFix/.test(d))d=d.replace(/(<a:blip\b[^>]*>)/,'$1<a:alphaModFix amt="35000"/>');
   return d})}
+/* watermark opacity is baked into the image itself (alphaModFix is ignored by Word in Compatibility Mode) */
+async function imgFaded(fid,path){const b=await getFile(fid);if(!b)return null;const d=await decodeImg(b);if(!d||!d.w)return null;
+ const c=document.createElement('canvas');c.width=d.w;c.height=d.h;const x=c.getContext('2d');const jpg=/jpe?g$/i.test(path);
+ if(jpg){x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height)}
+ x.globalAlpha=0.35;x.drawImage(d.src,0,0);
+ const out=await new Promise(r=>c.toBlob(r,jpg?'image/jpeg':'image/png',0.92));return new Uint8Array(await out.arrayBuffer())}
 async function blank1px(path){const c=document.createElement('canvas');c.width=c.height=1;const b=await new Promise(r=>c.toBlob(r,'image/png'));return imgToFormat(b,path)}
 async function applyRoles(z,pid,kind,keepW){const o=(S.prof[pid]||{});const img=o.img||{};const on=o.imgOn||{};const dim=o.imgDim||{};
  const isOn=r=>on[r]!==0;
@@ -1861,12 +1911,12 @@ async function applyRoles(z,pid,kind,keepW){const o=(S.prof[pid]||{});const img=
  /* suppress explicitly disabled slots (removes the template's own image from the output) */
  const suppress=async t=>{if(!t||used[key(t)])return;
   if(t.vml){if(z.file(t.path))z.file(t.path,await blank1px(t.path))}
-  else{let xml=await z.file(t.part).async('string');xml=patchDrawSize(xml,t.id,0.01,1);z.file(t.part,xml)}};
+  else{let xml=await z.file(t.part).async('string');xml=xml.replace(/<w:drawing>[\s\S]*?<\/w:drawing>/g,d=>d.indexOf('r:embed="'+t.id+'"')<0?d:'');z.file(t.part,xml)}};
  for(const role of ['stamp','sign','stampsig','wm','hd','logo']){if(on[role]===0){const t=(role==='stampsig')?(imgTgt(map,'stampsig')||map.sign||map.stamp):imgTgt(map,role);await suppress(t)}}
  /* combined on: the unused other body image goes too */
  if(img.stampsig&&isOn('stampsig')){const t=imgTgt(map,'stampsig')||map.sign||map.stamp;const other=t&&(t===map.sign)?map.stamp:map.sign;if(other)await suppress(other)}
  for(const j of jobs){
-  if(j.role==='wm'){if(await put(j.t,img.wm)){for(const part of Object.keys(z.files).filter(n=>/^word\/(document|header\d|footer\d)\.xml$/.test(n))){const reln='word/_rels/'+part.split('/').pop()+'.rels';if(!z.file(reln))continue;
+  if(j.role==='wm'){const fb=await imgFaded(img.wm,j.t.path);if(fb&&z.file(j.t.path)){z.file(j.t.path,fb);for(const part of Object.keys(z.files).filter(n=>/^word\/(document|header\d|footer\d)\.xml$/.test(n))){const reln='word/_rels/'+part.split('/').pop()+'.rels';if(!z.file(reln))continue;
     const rels=await z.file(reln).async('string');const xml=await z.file(part).async('string');const nx=patchWmDraw(xml,j.t.path,rels);if(nx!==xml)z.file(part,nx)}}}
   else if(j.role==='hd'||j.role==='logo'){await put(j.t,img[j.role])}
   else{if(await put(j.t,img[j.role])){let xml=await z.file(j.t.part).async('string');xml=patchDrawSize(xml,j.t.id,keepW&&j.t.cx?j.t.cx/914400:j.w,sizeOf(j.role));z.file(j.t.part,xml)}}}}
@@ -1914,6 +1964,7 @@ async function buildUtpl(r,kind,u){const pid=rpid(r);
  const m={CLIENT:r.client,DATE:combDate(r,u.defs),INQ:r.no,SUBJECT:r.subject,INTRO:u.defs.INTRO||''};
  Object.keys(u.defs).forEach(k=>{if(/^T\d+$/.test(k))m[k]=u.defs[k]});
  let hasVat=0;Object.keys(u.defs).forEach(k=>{if(/^T\d+$/.test(k)&&/ضريبة|VAT/i.test(u.defs[k])){m[k]=ar?vatStatementAr(r):vatStatementEn(r);hasVat=1}});
+ let hasShip=0;Object.keys(u.defs).forEach(k=>{if(/^T\d+$/.test(k)&&/شحن|incoterm|shipping/i.test(u.defs[k])){m[k]=shipLine(r,ar);hasShip=1}});
  const rows=r.items.map((it,k)=>{const up=F.rows[k]?F.rows[k].up:NaN,tt=F.rows[k]?F.rows[k].tt:NaN;
   return u.tpl.rowTpl.replace('@@NO@@',()=>xe(it.no)).replace('@@QTY@@',()=>xe(it.qty)).replace('@@UNIT@@',()=>xe(it.unit||''))
    .replace('@@UP@@',()=>xe(kind==='tech'?'':f2(up))).replace('@@TT@@',()=>xe(kind==='tech'?'':f2(tt))).replace('@@NOTES@@','')
@@ -1921,7 +1972,7 @@ async function buildUtpl(r,kind,u){const pid=rpid(r);
  const vlines=[];
  if(kind!=='tech'){vlines.push((ar?'الإجمالي: ':'Total: ')+f2(F.tot)+' '+cur);
   if(F.vatMode==='add'){vlines.push((ar?'ضريبة القيمة المضافة '+F.vatPc+' %: ':'VAT '+F.vatPc+'%: ')+f2(F.vatAmt)+' '+cur);vlines.push((ar?'الإجمالي شامل الضريبة: ':'Grand Total including VAT: ')+f2(F.grand)+' '+cur)}
-  if(!hasVat)vlines.push(ar?vatStatementAr(r):vatStatementEn(r))}
+  if(!hasVat)vlines.push(ar?vatStatementAr(r):vatStatementEn(r));if(!hasShip)vlines.push(shipLine(r,ar))}
  const vatP=vlines.map(l=>u.tpl.linePara.replace('@@LINE@@',()=>xe(l))).join('');
  const xml=u.tpl.head+fillTok(u.tpl.pre,m)+u.tpl.tblHead+rows+u.tpl.tblTail+vatP+fillTok(u.tpl.post,m);
  z.file('word/document.xml',xml);await applyRoles(z,pid,kind,1);
@@ -1949,6 +2000,109 @@ function utplCardF(){if(typeof myRole==='function'&&myRole()!=='admin')return ''
  return `<div class="card"><h2>قوالب مرفوعة من عندك (فني ومالي، عربي وإنجليزي)</h2><p class="muted">ارفع ملف Word بتاعك لأي عرض، والبرنامج بيشتغل عليه: بيتعرف على جدول البنود والعميل ورقم الطلب والتاريخ والشروط وبيملاهم من الطلب، وبيستخدم شكل ملفك نفسه (هيدر وفوتر وصور). وقت الإصدار بيختار القالب حسب لغة العرض (عربي/إنجليزي)، ولو رفعت لغة واحدة بس بيستخدمها للاتنين. <b>المالي لازم يكون فيه أعمدة سعر الوحدة والإجمالي</b> زي ملف العرض الشامل. الشروط بتتعدل من هنا بعد الرفع. راجع بمعاينة قبل أول إصدار.</p>
  ${row('tech','العرض الفني','ar','عربي')}${row('tech','العرض الفني','en','إنجليزي')}${row('fin','العرض المالي','ar','عربي')}${row('fin','العرض المالي','en','إنجليزي')}</div>`}
 const _tTpl6=tTpl;tTpl=function(){return _tTpl6()+utplCardF()};
+
+/* ================= v5r: user-ordered tabs (drag to reorder; arrows mode for touch) ================= */
+let TABEDIT=false,DRGID=null;
+function navOrder(){const ids=TABS.map(t=>t[0]);const saved=(S.tabOrder||[]).filter(id=>ids.includes(id));ids.forEach(id=>{if(!saved.includes(id))saved.push(id)});return saved}
+function tabMove(id,dir){const o=navOrder();const i=o.indexOf(id);const j=i+dir;if(j<0||j>=o.length)return;const t=o[i];o[i]=o[j];o[j]=t;S.tabOrder=o;save();render()}
+function tabDrop(id){if(!DRGID||DRGID===id)return;const o=navOrder().filter(x=>x!==DRGID);o.splice(o.indexOf(id),0,DRGID);S.tabOrder=o;DRGID=null;save();render()}
+function navRender(){const nav=document.getElementById('nav');if(!nav)return;
+ const lab=id=>{const t=TABS.find(x=>x[0]===id);return t?t[1]:id};
+ nav.innerHTML=navOrder().map(id=>TABEDIT?
+  `<button class="${S.tab===id?'on':''}" style="cursor:default">${esc(lab(id))} <span style="white-space:nowrap"><a style="cursor:pointer;color:inherit;padding:0 2px" title="قدّم" onclick="tabMove('${id}',-1)">➡</a><a style="cursor:pointer;color:inherit;padding:0 2px" title="أخّر" onclick="tabMove('${id}',1)">⬅</a></span></button>`
+  :`<button class="${S.tab===id?'on':''}" draggable="true" ondragstart="DRGID='${id}'" ondragover="event.preventDefault()" ondrop="tabDrop('${id}')" onclick="S.tab='${id}';save();render()">${esc(lab(id))}</button>`).join('')
+  +`<button title="ترتيب التبويبات (اسحب أي تبويب مباشرة، أو افتح وضع الترتيب بالأسهم)" style="opacity:.75" onclick="TABEDIT=!TABEDIT;render()">${TABEDIT?'✓ تم':'↕ رتّب'}</button>`}
+const _renderTabs=render;
+render=function(){_renderTabs();try{navRender()}catch(e){}};
+
+/* ================= v5s: Incoterm + supplier payment-term dropdowns ================= */
+/* INCOT: [code, arName, enName, arExplain, enExplain] — first entry EXW is the default */
+const INCOT=[
+['EXW','تسليم المصنع','Ex Works','البائع بيجهز البضاعة في مكانه بس، والمشتري بيتحمل التحميل والنقل والشحن والتأمين والتخليص الجمركي كله.','Seller only makes the goods ready at his premises; the buyer bears all loading, transport, insurance and customs.'],
+['FCA','تسليم للناقل','Free Carrier','البائع بيسلّم البضاعة مخلّصة جمركيًا للناقل اللي المشتري يحدده، ومن هناك كل حاجة على المشتري.','Seller delivers the goods cleared for export to the buyer\'s carrier; the buyer pays freight, insurance and the rest.'],
+['FAS','تسليم جانب السفينة','Free Alongside Ship','البائع بيوصّل البضاعة جنب السفينة في ميناء الشحن، والتحميل على السفينة وأجرة الشحن والباقي على المشتري.','Seller places the goods alongside the ship at the load port; the buyer pays loading, ocean freight and beyond.'],
+['FOB','تسليم على ظهر السفينة','Free On Board','البائع بيحمّل البضاعة على السفينة في ميناء الشحن، وأجرة الشحن والتأمين والتفريغ على المشتري.','Seller loads the goods on board; the buyer pays freight, insurance and discharge.'],
+['CFR','التكلفة + أجرة الشحن','Cost and Freight','البائع بيدفع أجرة الشحن لميناء الوصول، والمخاطر بتنتقل للمشتري أول ما البضاعة تركب السفينة، والتأمين على المشتري.','Seller pays freight to the destination port; risk passes to the buyer once goods are on board; insurance on the buyer.'],
+['CIF','التكلفة + التأمين + أجرة الشحن','Cost, Insurance and Freight','زي CFR بس البائع بيدفع التأمين كمان لميناء الوصول.','Like CFR, but the seller also pays insurance to the destination port.'],
+['CPT','الشحن مدفوع لحد مكان الوصول','Carriage Paid To','البائع بيدفع أجرة النقل لمكان الوصول المتفق عليه، والمخاطر بتنتقل للمشتري عند تسليم أول ناقل، والتأمين على المشتري.','Seller pays carriage to the agreed destination; risk passes at the first carrier; insurance on the buyer.'],
+['CIP','الشحن والتأمين مدفوعين لحد مكان الوصول','Carriage and Insurance Paid To','زي CPT بس البائع بيدفع التأمين كمان.','Like CPT, but the seller also pays insurance.'],
+['DAP','التسليم في مكان الوصول','Delivered At Place','البائع بيوصّل البضاعة لمكان الوصول المتفق عليه جاهزة للتفريغ، والتفريغ والجمارك والرسوم على المشتري.','Seller delivers the goods ready for unloading at the agreed place; unloading, customs and duties on the buyer.'],
+['DPU','التسليم مفرّغة في مكان الوصول','Delivered at Place Unloaded','البائع بيوصّل البضاعة ويفرّغها في مكان الوصول، والجمارك والرسوم على المشتري.','Seller delivers and unloads at the agreed place; customs and duties on the buyer.'],
+['DDP','التسليم خالص الرسوم','Delivered Duty Paid','البائع بيتحمل كل حاجة لحد مكان المشتري شاملة الجمارك والرسوم، والمشتري بيستلم بس.','Seller bears everything to the buyer\'s place including duties; the buyer only receives.'],
+['DES','تسليم على ظهر السفينة بميناء الوصول (شرط قديم)','Delivered Ex Ship (old term)','البائع بيتحمل كل حاجة لحد ما البضاعة توصل على ظهر السفينة في ميناء الوصول، والتفريغ والباقي على المشتري. شرط قديم (إنكوتيرمز 2000)، البديل الحديث DAP.','Seller bears everything until the goods are on board at the destination port; unloading onward on the buyer. Old Incoterms 2000 term, modern equivalent DAP.'],
+['DEQ','تسليم على الرصيف (شرط قديم)','Delivered Ex Quay (old term)','البائع بيوصّل البضاعة مفرّغة على رصيف ميناء الوصول، والجمارك والنقل الداخلي على المشتري. شرط قديم (إنكوتيرمز 2000)، البديل الحديث DPU.','Seller delivers the goods unloaded on the quay at the destination port; customs and inland transport on the buyer. Old Incoterms 2000 term, modern equivalent DPU.']];
+function incotX(r){const c=(r&&r.incoterm)||'EXW';return INCOT.find(x=>x[0]===c)||INCOT[0]}
+function incot(r){return incotX(r)[0]}
+function shipLine(r,ar){const x=incotX(r);return ar?('الشحن (Incoterm): '+x[0]+' — '+x[1]+'. '+x[3]):('Shipping (Incoterm): '+x[0]+' — '+x[2]+'. '+x[4])}
+/* PAYT: [code, labelAR, explainAR] */
+const PAYT=[
+['advance','تحويل بنكي مقدم 100% (TT in advance)','الدفع كله قبل الشحن أو التسليم. أعلى أمان للمورد وأعلى مخاطرة عليك.'],
+['partial','دفعة مقدمة + الباقي قبل/عند التسليم','نسبة مقدم (مثلاً 30%) والباقي قبل الشحن أو عند التسليم. الأكثر شيوعًا وتوازن بين الطرفين.'],
+['cad','نقدًا مقابل المستندات (CAD)','بتدفع مقابل مستندات الشحن عن طريق البنك، من غير ضمان بنكي للسداد. أسرع وأرخص من الاعتماد المستندي بس أقل أمانًا.'],
+['lcs','اعتماد مستندي عند الاطلاع (LC at sight)','بنكك بيدفع للمورد أول ما يقدّم مستندات مطابقة لشروط الاعتماد وتتأكد منها البنوك. أمان عالي للطرفين بتكلفة بنكية.'],
+['lcd','اعتماد مستندي آجل (Usance / Deferred LC)','البنك بيدفع في تاريخ الاستحقاق بعد ما يفحص المستندات ويتأكد إنها مطابقة، فبيديك وقت تفحص أو تبيع البضاعة قبل السداد (30-180 يوم من الاطلاع أو الشحن).'],
+['lcc','اعتماد مستندي مؤكد (Confirmed LC)','بنك المورد بيضيف ضمانه لضمان البنك المُصدر، فبيتحمّل السداد حتى لو البنك المُصدر مقدرش. أعلى أمان للمورد وبتكلفة أكبر. غير المؤكد (Unconfirmed) بضمان البنك المُصدر بس.'],
+['oa30','حساب مفتوح Net 30','بتستلم البضاعة وتدفع بعد 30 يوم. بيحتاج ثقة قوية مع المورد.'],
+['oa60','حساب مفتوح Net 60','زي حساب Net 30 بس السداد بعد 60 يوم.'],
+['cod','الدفع عند الاستلام (COD)','بتدفع عند استلام البضاعة فعليًا.']];
+/* ---- quote-card dropdown fields (replace the free-text qf for payment/incoterm) ---- */
+const _qfStd=qf;
+qf=function(qi,k,label,w,type){
+ if(k==='payment'){const q=R().quotes[qi];const kn=PAYT.find(x=>x[1]===q.payment);
+  return `<label style="width:${w}">${label}<select onchange="R().quotes[${qi}].payment=this.value;save();render()"><option value="">اختر من القياسية…</option>${PAYT.map(x=>`<option ${q.payment===x[1]?'selected':''}>${esc(x[1])}</option>`).join('')}</select>
+  <input placeholder="أو اكتب شرط حر" value="${kn?'':esc(q.payment)}" oninput="R().quotes[${qi}].payment=this.value;save()" onchange="render()">
+  <span class="muted" style="font-size:11px;display:block">${kn?esc(kn[2]):''}</span></label>`}
+ if(k==='incoterm'){const q=R().quotes[qi];const kn=INCOT.find(x=>x[0]===q.incoterm);
+  return `<label style="width:${w}">${label}<select onchange="R().quotes[${qi}].incoterm=this.value;save();render()"><option value="">اختر…</option>${INCOT.map(x=>`<option value="${x[0]}" ${q.incoterm===x[0]?'selected':''}>${x[0]} — ${esc(x[1])}</option>`).join('')}</select>
+  <input placeholder="أو اكتب شرط حر" value="${kn?'':esc(q.incoterm)}" oninput="R().quotes[${qi}].incoterm=this.value;save()" onchange="render()">
+  <span class="muted" style="font-size:11px;display:block">${kn?esc(kn[3]):''}</span></label>`}
+ return _qfStd(qi,k,label,w,type)};
+
+/* ================= v5t: notifications bell (shared store, role-targeted) ================= */
+/* Notifications live in the shared encrypted store: they reach other devices/users through the
+   normal Drive sync (push seconds after the action; other devices pick up on open or the 5-minute pull).
+   No delivery while the app is closed — there is no server push. */
+function nfEnsure(){if(!S)return;S.notifs=S.notifs||[];S.notifSn=S.notifSn||0}
+function nfAdd(kind,rfq,txt,to,v){nfEnsure();if(!ME)return;
+ S.notifs.push({id:uid(),sn:++S.notifSn,ts:Date.now(),kind,rfq:rfq||null,txt,by:ME.name,to:to||null,v:v||null,read:{[ME.name]:1}});
+ if(S.notifs.length>100)S.notifs=S.notifs.slice(-100);save();try{nfBadge()}catch(e){}}
+function nfMine(){nfEnsure();const role=myRole();return S.notifs.filter(n=>!n.to||n.to.includes(role)).slice().reverse()}
+function nfUnread(){return nfMine().filter(n=>!(n.read||{})[ME.name]).length}
+function nfOpen(id){const n=(S.notifs||[]).find(x=>x.id===id);if(!n)return;n.read=n.read||{};n.read[ME.name]=1;
+ if(n.kind==='upd'){save();if(typeof updGo==='function'&&confirm('هيتم حفظ شغلك وإعادة تحميل الصفحة للنسخة الجديدة. كمّل؟'))updGo();else render();return}
+ if(n.rfq&&(S.rfqs||[]).some(r=>r.id===n.rfq)){S.cur=n.rfq;S.tab=n.kind==='rfq'?'rfq':'fin'}
+ save();render()}
+function nfAllRead(){let ch=0;nfMine().forEach(n=>{if(!(n.read||{})[ME.name]){n.read=n.read||{};n.read[ME.name]=1;ch++}});if(ch){save();render()}}
+const NF_KIND={rfq:'طلب جديد',tech:'عرض فني',fin:'عرض مالي',upd:'تحديث برنامج'};
+function nfBadge(){let b=document.getElementById('nfbtn');
+ if(!b){const sv=document.getElementById('saved');if(!sv)return;
+  b=document.createElement('button');b.id='nfbtn';b.className='b o s';b.style.position='relative';b.title='الإشعارات';
+  b.onclick=nfToggle;sv.insertAdjacentElement('beforebegin',b)}
+ const n=ME?nfUnread():0;
+ b.innerHTML='🔔'+(n?`<span style="position:absolute;top:-6px;left:-6px;background:#d33;color:#fff;border-radius:10px;font-size:11px;padding:1px 6px;font-weight:bold">${n}</span>`:'')}
+function nfToggle(){const old=document.getElementById('nfpanel');if(old){old.remove();return}
+ const b=document.getElementById('nfbtn');const r=b.getBoundingClientRect();
+ const d=document.createElement('div');d.id='nfpanel';
+ d.style.cssText='position:fixed;top:'+(r.bottom+6)+'px;left:'+Math.max(8,r.left-260)+'px;width:340px;max-height:60vh;overflow:auto;background:var(--card,#fff);color:var(--fg,#1a2733);border:1px solid var(--bd,#d3dae3);border-radius:10px;box-shadow:0 8px 30px #0004;z-index:9997;padding:8px;direction:rtl';
+ const list=nfMine().slice(0,30);
+ d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b>الإشعارات</b><a style="cursor:pointer;font-size:12px;color:var(--ac,#2a7)" onclick="nfAllRead();document.getElementById('nfpanel').remove()">تعليم الكل كمقروء</a></div>`
+  +(list.length?list.map(n=>{const un=!(n.read||{})[ME.name];const dt=new Date(n.ts);
+   const ds=String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+'/'+dt.getFullYear()+' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
+   return `<div onclick="document.getElementById('nfpanel').remove();nfOpen('${n.id}')" style="cursor:pointer;padding:8px;border-radius:8px;margin-bottom:4px;border:1px solid var(--bd,#d3dae3);${un?'background:#fff8e6;border-color:#e0b040':''}">
+   <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--mut,#7a8);margin-bottom:2px"><span><b>#${n.sn}</b> · ${NF_KIND[n.kind]||n.kind}${n.by?' · '+esc(n.by):''}</span><span>${ds}</span></div>
+   <div style="font-size:13px;${un?'font-weight:bold':''}">${esc(n.txt)}</div></div>`}).join(''):'<div class="muted" style="padding:10px">مفيش إشعارات لسه.</div>');
+ document.body.appendChild(d);
+ setTimeout(()=>{const h=e=>{if(!d.contains(e.target)&&e.target!==b){d.remove();document.removeEventListener('click',h)}};document.addEventListener('click',h)},50)}
+/* ---- event hooks ---- */
+const _nfNewRfq=newRfq;newRfq=function(){_nfNewRfq();const r=R();if(r)nfAdd('rfq',r.id,'طلب تسعير جديد اتضاف'+(r.no?' رقم '+r.no:'')+(r.client?' — '+r.client:'')+(r.subject?' ('+r.subject+')':''),['purchasing'])};
+const _nfIssueTech=issueTech;issueTech=async function(){const r=R();const prev=r&&r.techAt;await _nfIssueTech();if(r&&r.techAt!==prev)nfAdd('tech',r.id,'العرض الفني جاهز لطلب '+(r.no||'بدون رقم')+(r.client?' — '+r.client:''),['sales','admin'])};
+const _nfIssueFin=issueFin;issueFin=async function(){const r=R();const prev=r&&r.finAt;await _nfIssueFin();if(r&&r.finAt!==prev)nfAdd('fin',r.id,'العرض المالي جاهز لطلب '+(r.no||'بدون رقم')+(r.client?' — '+r.client:''),['sales'])};
+const _nfIssueComb=issueComb;issueComb=async function(){const r=R();const prev=r&&r.finAt;await _nfIssueComb();if(r&&r.finAt!==prev)nfAdd('fin',r.id,'العرض الشامل جاهز ومعتمد لطلب '+(r.no||'بدون رقم')+(r.client?' — '+r.client:''),['sales'])};
+/* ---- app update notice into the bell (deduped per version) ---- */
+const _nfUpdShow=updShow;updShow=function(j){try{nfEnsure();if(j&&j.v&&!S.notifs.some(n=>n.kind==='upd'&&n.v===String(j.v)))nfAdd('upd',null,'فيه نسخة جديدة من البرنامج ('+j.v+'). لازم تعيد تحميل الصفحة من الأول عشان تشتغل.',null,String(j.v))}catch(e){}_nfUpdShow(j)};
+/* ---- badge refresh with every render + periodic pull so other devices' notifications show up ---- */
+const _nfRender=render;render=function(){_nfRender();try{nfBadge()}catch(e){}};
+const _nfSynInit=synInit;synInit=function(){_nfSynInit();setInterval(()=>{if(!document.hidden)try{synOpenPull()}catch(e){}},5*60*1000)};
 
 /* ---------- supplier finder ---------- */
 function mountSF(){const h=document.getElementById('sfhost');if(h.firstChild)return;const fr=document.createElement('iframe');fr.srcdoc=document.getElementById('sf-src').textContent.replace(/<\\\/script/g,'</script');h.appendChild(fr)}
