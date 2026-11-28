@@ -1542,7 +1542,7 @@ function arPost(r,xml){return rLang(r)==='ar'?arDoc(xml,!!r.arDigits):xml}
 function langBox(){const r=R();return `<label style="width:150px">لغة العرض<select onchange="R().lang=this.value;save();render()"><option value="en" ${rLang(r)==='en'?'selected':''}>English</option><option value="ar" ${rLang(r)==='ar'?'selected':''}>عربي</option></select></label>${rLang(r)==='ar'?`<label style="flex-direction:row;align-items:center;gap:6px;width:auto"><input type="checkbox" style="width:auto" ${r.arDigits?'checked':''} onchange="R().arDigits=this.checked;save();render()"> أرقام عربية (٠١٢)</label><div class="note" style="width:100%;font-size:12px">النسخة العربية بتتولد من قالب الشركة الإنجليزي: العناوين الثابتة والشروط الافتراضية المعروفة بتتترجم، والتوقيع والاسم بيتاخدوا من حقول الشركة العربية (قوالب الشركات). أي شرط بتكتبه بإيدك بعربي بيطلع زي ما هو. الهيدر والفوتر والختم صور القالب زي ما هي. راجع الملف في Word قبل الإرسال.</div>`:''}`}
 
 /* ---- in-app update notice (hosted only): compares BUILD_ID with version.json on the site ---- */
-const BUILD_ID='202611281543';
+const BUILD_ID='202611281644';
 const PACK_V='4bac8e28ea'; /* content hash of the private pack that matches this build; build_host fills both */
 let UPD={shown:false,v:null};
 async function updCheck(){if(UPD.shown||BUILD_ID.indexOf('@@')===0||!synHosted())return;
@@ -2288,6 +2288,209 @@ async function upRfqAI(inp){const fs=[...inp.files];inp.value='';if(!fs.length)r
   await attach(R(),f);const ch=applyMeta(r.meta);if(r.text)R().ocr=(R().ocr?R().ocr+'\n':'')+r.text;R().items.push(...r.items);save();render();
   alert('اتقرا '+r.items.length+' بند من '+f.name+' بواسطة '+(r.how==='AI'?'الذكاء الاصطناعي ('+(LASTVIA?LASTVIA.name:'المزود')+')':'القراءة أوفلاين على جهازك')+(ch.length?' وملا: '+ch.join('، '):'')+'. راجع الوصف والكميات على الأصل المرفق قبل ما تعتمد.')}
  catch(e){toast('');showErr(e)}}toast('');save();render()}
+
+/* ---------- build 20261128xx: comparison overhaul ---------- */
+function med(a){if(!a.length)return null;const s=[...a].sort((x,y)=>x-y);const m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2}
+/* guards: a parsed "unit price" that is really a part/phone number */
+function suspPrice(u){return typeof u==='number'&&!isNaN(u)&&u>=1e8}
+const SUSP_MSG='الرقم ده ضخم جدًا ومش شبه سعر وحدة — غالبًا رقم صنف أو تليفون اتسجّل غلط. اتعلّم للمراجعة ومش بيتحسب في الإجمالي ولا في الأرخص.';
+const _pqtX=parseQuoteText;parseQuoteText=function(text,items){const r=_pqtX(text,items);for(const id in r.p){const u=parseFloat(r.p[id].unit);if(suspPrice(u))r.p[id].flag=(r.p[id].flag?r.p[id].flag+' | ':'')+SUSP_MSG}return r};
+const _uqdX=upQuoteDoc;upQuoteDoc=async function(inp){const n=R().quotes.length;await _uqdX(inp);const q=R().quotes[n];if(q)for(const id in q.p){const u=parseFloat(q.p[id].unit);if(suspPrice(u))q.p[id].flag=(q.p[id].flag?q.p[id].flag+' | ':'')+SUSP_MSG}};
+/* warranty: offline extraction + manual field */
+const _qmX=quoteMeta;quoteMeta=function(t){const m=_qmX(t);const w=t.match(/(?:warranty|guarantee)\s*(?:period)?\s*[:\-]?\s*([0-9]+\s*(?:months?|years?)\b[^\n,.;]{0,40})/i);if(w)m.warranty=w[1].trim();return m};
+const _aqmX=applyQM;applyQM=function(q,t){const m=_aqmX(q,t);if(m.warranty&&!q.warranty)q.warranty=m.warranty;return m};
+/* analyse with outlier flags + outlier-safe totals */
+function analyse(r){const res=r.quotes.map(q=>{let cov=0,miss=false,okc=0,no=0,part=0;const per={};
+ r.items.forEach(it=>{const p=q.p[it.id]||{};const u=parseFloat(String(p.unit||'').replace(/,/g,''));if(!isNaN(u)){const k=fxv(q.currency);const b=u*k;per[it.id]=b;if(isNaN(b))miss=true;cov++}
+  if(p.comp==='ok')okc++;if(p.comp==='no')no++;if(p.comp==='part')part++});
+ const n=r.items.length;const status=no?'no':(okc===n&&n?'ok':'pend');return {q,tot:0,cov,miss,per,status,okc,no,part,outl:0,flagged:{},full:cov===n&&n>0}});
+ r.items.forEach(it=>{const vals=[];res.forEach(x=>{const v=x.per[it.id];if(v!=null&&!isNaN(v)&&v>0&&!suspPrice(v)&&(x.q.p[it.id]||{}).comp!=='no')vals.push(v)});
+  const m=vals.length>=3?med(vals):null;
+  res.forEach(x=>{const v=x.per[it.id];if(v==null||isNaN(v))return;let f='';
+   if(suspPrice(v))f=SUSP_MSG;
+   else if(m&&m>0&&(v>5*m||v<m/5))f='سعر البند ده بعيد جدًا عن وسيط باقي العروض ('+m.toFixed(2)+' '+S.baseCur+'). اتعلّم للمراجعة ومش بيتحسب في الإجمالي ولا في الأرخص.';
+   if(f)x.flagged[it.id]=f})});
+ res.forEach(x=>{let t=0;r.items.forEach(it=>{const v=x.per[it.id];if(v!=null&&!isNaN(v)){if(x.flagged[it.id])x.outl++;else t+=v*(it.qty||0)}});x.tot=t});
+ const best={};r.items.forEach(it=>{let b=null;res.forEach(x=>{const v=x.per[it.id];if(v!=null&&!isNaN(v)&&!x.flagged[it.id]&&(x.q.p[it.id]||{}).comp!=='no'&&(b==null||v<b.v))b={v,x}});if(b)best[it.id]=b.x.q.id});return {res,best}}
+/* supplier workflow status */
+const QST={'':'استلمنا','clar':'محتاج توضيح','short':'مرشح','rej':'مرفوض'};
+function stag(s){const c=s==='short'?'t-ok':s==='rej'?'t-no':s==='clar'?'t-pend':'t-pend';return '<span class="tag '+c+'">'+esc(QST[s]||QST[''])+'</span>'}
+function clarList(x,r){const a=[];const n=r.items.length;
+ if(x.cov<n)a.push('ناقص تسعير '+(n-x.cov)+' بند');
+ if(!(x.q.incoterm||'').trim())a.push('الشحن (Incoterm) مش محدد');
+ if(!(x.q.validity||'').trim())a.push('صلاحية العرض مش محددة');
+ if(!(x.q.lead||'').trim())a.push('مدة التسليم مش محددة');
+ if(isNaN(fxv(x.q.currency)))a.push('سعر صرف '+x.q.currency+' مش مدخل');
+ if(x.outl)a.push(x.outl+' سعر مشكوك فيه (معلّم أصفر) — محتاج تأكيد من المورد');
+ return a}
+/* comparison view */
+function tCmp(){const r=R();if(!r.items.length||!r.quotes.length)return '<div class="card">ضيف بنود وعروض موردين الأول.</div>';const {res,best}=analyse(r);const B=S.baseCur;const N=r.items.length;
+ const valid=res.filter(x=>x.full&&!x.miss);const okList=valid.filter(x=>x.status==='ok').sort((a,b)=>a.tot-b.tot);const pend=valid.filter(x=>x.status==='pend').sort((a,b)=>a.tot-b.tot);
+ const fast=[...valid].filter(x=>x.status!=='no'&&parseFloat(x.q.lead)>0).sort((a,b)=>parseFloat(a.q.lead)-parseFloat(b.q.lead))[0];
+ let rec='';
+ if(okList.length)rec+=`<p><b>الترشيح: نفّذ مع ${esc(okList[0].q.supplier)}</b> (${esc(okList[0].q.country)}) بإجمالي ${okList[0].tot.toFixed(2)} ${B}. هو الأرخص بين الموردين المطابقين فنياً واللي مسعّرين كل البنود.</p>`+(okList[1]?`<p class="muted">البديل: ${esc(okList[1].q.supplier)} بإجمالي ${okList[1].tot.toFixed(2)} ${B}.</p>`:'');
+ else rec+='<p><b>مفيش مورد متأكد مطابقته فنياً لحد دلوقتي.</b> حدد المطابقة الفنية لكل بند في تبويب العروض.</p>';
+ if(pend.length)rec+=`<p class="muted">أرخص مورد لسه المراجعة الفنية عليه ما اكتملتش: ${esc(pend[0].q.supplier)} بإجمالي ${pend[0].tot.toFixed(2)} ${B}. الترشيح ده مش نهائي إلا بعد مراجعتك الفنية.</p>`;
+ if(fast)rec+=`<p class="muted">الأسرع تسليماً (غير مرفوض فنياً): ${esc(fast.q.supplier)} - ${esc(fast.q.lead)}.</p>`;
+ /* per-item award */
+ let award=0,an=0,missIt=0;const winners={};
+ r.items.forEach(it=>{const qid=best[it.id];if(!qid){missIt++;return}const x=res.find(y=>y.q.id===qid);if(!x)return;award+=x.per[it.id]*(it.qty||0);an++;winners[qid]=(winners[qid]||0)+1});
+ const nw=Object.keys(winners).length;
+ let aw='';
+ if(an){aw=`<p><b>لو رسّيت كل بند على أرخص مورد ليه:</b> الإجمالي ${award.toFixed(2)} ${B} على ${an} بند من ${N}، موزعة على ${nw} مورد${nw>1?'ين':''}${missIt?` (${missIt} بند مفيهوش سعر صالح مش محسوب)`:''}.</p>`;
+  const base=(okList[0]||pend[0]);
+  if(base)aw+=`<p class="muted">مقارنة بأرخص مورد شامل (${esc(base.q.supplier)} بإجمالي ${base.tot.toFixed(2)} ${B}): التوزيع بالبند ${award<base.tot?'أوفر بحوالي '+(base.tot-award).toFixed(2):'مش أوفر من'} ${B} — بس افتكر إن التوزيع على ${nw} مورد معناه ${nw>1?'أوامر شراء وشحنات ومتابعة أكتر':'نفس المورد'}.</p>`;
+  aw+=`<p class="muted">الأرخص لكل بند ظاهر في آخر صف في الجدول، والخلايا الخضرا هي الأرخص لكل بند (من العروض غير المرفوضة فنيًا والأسعار المقبولة).</p>`}
+ else aw='<p class="muted">مفيش أسعار صالحة كفاية لحساب الترسية بالبند.</p>';
+ const rows=[...res].sort((a,b)=>(b.cov-a.cov)||((isNaN(a.tot)?1e30:a.tot)-(isNaN(b.tot)?1e30:b.tot)));
+ const short=d=>{const s=String(d||'').replace(/\s+/g,' ').trim();return s.length>38?s.slice(0,38)+'...':s};
+ return fxBanner(r)+`<style>.cmpT td.sup{position:sticky;right:0;background:#fff;z-index:2;min-width:150px;max-width:240px;white-space:normal;box-shadow:-2px 0 3px #0001}body.dark .cmpT td.sup{background:#18202c}.cmpT td{min-width:80px}</style>
+<div class="card"><h2>الترشيح</h2>${rec}<div class="note">الترشيح آلي من أسعارك ومراجعتك الفنية: المهندس هو اللي يقرر المطابقة النهائية. الموردين اللي سعّروا بعض البنود بس مش بيدخلوا الترشيح، والأسعار المعلّمة أصفر (مشكوك فيها) مش بتحسب في الإجمالي ولا في الأرخص.</div></div>
+<div class="card"><h2>الترسية بالبند</h2>${aw}</div>
+<div class="card"><h2>مقارنة الأسعار (بعملة ${B}) — مرتبة بالتغطية ثم الإجمالي</h2><div class="scroll"><table class="cmpT"><tr><th class="sup" style="position:sticky;right:0;z-index:3">المورد</th><th>التواصل</th><th>الدولة</th><th>العملة الأصلية</th><th>Incoterm</th><th>التسليم</th><th>الصلاحية</th><th>الضمان</th><th>الدفع</th>${r.items.map(it=>`<th style="min-width:110px">بند ${esc(it.no)}<br><span class="muted" style="font-weight:normal">${esc(short(it.desc))}</span><br><span class="muted">${esc(it.qty)} × سعر</span></th>`).join('')}<th>الإجمالي</th><th>البنود المسعّرة</th><th>الفني</th><th>الحالة</th><th>توضيحات مطلوبة</th></tr>
+${rows.map(x=>{const cl=clarList(x,r);return `<tr><td class="sup"><b>${esc(x.q.supplier)}</b></td><td style="font-size:12px">${esc(x.q.contact||'')}${x.q.email?'<div dir="ltr">'+esc(x.q.email)+'</div>':''}${x.q.phone?'<div dir="ltr">'+esc(x.q.phone)+'</div>':''}</td><td>${esc(x.q.country)}</td><td>${esc(x.q.currency)}</td><td>${esc(x.q.incoterm)}</td><td>${esc(x.q.lead)}</td><td>${x.q.validity?esc(x.q.validity):'<span class="muted">-</span>'}</td><td>${x.q.warranty?esc(x.q.warranty):'<span class="muted">-</span>'}</td><td>${esc(x.q.payment||'')}</td>
+${r.items.map(it=>{const v=x.per[it.id];const c=(x.q.p[it.id]||{}).comp;const nofx=v!=null&&isNaN(v);const fl=x.flagged[it.id];return `<td class="${best[it.id]===x.q.id?'best':''} ${c==='no'?'bad':''} ${fl?'warn':''}" ${nofx?'style="background:#c62828;color:#fff;font-weight:bold"':''} ${fl?'title="'+esc(fl)+'"':''}>${v==null?'-':nofx?'دخّل سعر الصرف':v.toFixed(2)}${fl?' ⚠':''}${c==='ok'?' ✓':c==='no'?' ✗':''}</td>`}).join('')}
+<td><b>${x.cov?(x.miss?'<span style="color:#c62828">دخّل سعر الصرف</span>':x.tot.toFixed(2)+(x.cov<N?' <span class="muted">(جزئي)</span>':'')+(x.outl?' <span class="warn" title="'+x.outl+' سعر مشكوك فيه مش محسوب">⚠</span>':'')):'-'}</b></td><td>${x.cov}/${N}${x.cov<N&&x.cov>0?'<div class="muted" style="font-size:11px">تغطية جزئية</div>':''}</td><td>${tag(x.status)}</td><td>${stag(x.q.st||'')}</td><td style="font-size:12px;min-width:160px">${cl.length?cl.map(esc).join('<br>'):'<span class="muted">-</span>'}</td></tr>`}).join('')}
+<tr><td class="sup"><b>أرخص سعر لكل بند</b></td><td colspan="8" class="muted" style="font-size:12px">من العروض غير المرفوضة فنيًا والأسعار المقبولة</td>${r.items.map(it=>{const qid=best[it.id];if(!qid)return '<td class="muted">-</td>';const x=res.find(y=>y.q.id===qid);const v=x.per[it.id];return `<td class="best" title="${esc(x.q.supplier)}"><b>${v.toFixed(2)}</b><br><span class="muted" style="font-size:10px">${esc(short(x.q.supplier).slice(0,18))}</span></td>`}).join('')}<td><b>${an?award.toFixed(2):'-'}</b></td><td>${an}/${N}</td><td colspan="3"></td></tr></table></div>
+<p class="muted">الأخضر = أقل سعر للبند بين العروض غير المرفوضة فنياً والأسعار المقبولة. الأصفر ⚠ = سعر مشكوك فيه (بعيد جدًا عن باقي العروض أو رقم غير منطقي) — مش محسوب في الإجمالي ولا الأرخص لحد ما تراجعه. ✓ مطابق، ✗ غير مطابق. المجاميع الجزئية مش للمقارنة المباشرة مع الشاملة.</p><button class="b" onclick="exportCmp()">تصدير المقارنة Excel</button></div>`}
+/* offers tab: add warranty + status to each quote card */
+function qCard(r,q,qi){return `<div class="card"><div class="row">${qf(qi,'supplier','المورد','200px')}${qf(qi,'country','الدولة','120px')}
+<label style="width:90px">العملة<input list="curs" value="${esc(q.currency)}" oninput="R().quotes[${qi}].currency=this.value.toUpperCase();save()"></label>${qf(qi,'incoterm','الشحن (Incoterm)','110px')}${qf(qi,'lead','مدة التسليم','110px')}${qf(qi,'validity','صلاحية العرض','110px')}${qf(qi,'warranty','الضمان','110px')}${qf(qi,'payment','شروط الدفع','140px')}
+<label style="width:130px">حالة العرض<select onchange="R().quotes[${qi}].st=this.value;save()">${Object.keys(QST).map(k=>`<option value="${k}" ${(q.st||'')===k?'selected':''}>${QST[k]}</option>`).join('')}</select></label>${qf(qi,'notes','ملاحظات','180px')}
+<button class="b r s" onclick="if(confirm('حذف العرض؟')){R().quotes.splice(${qi},1);save();render()}">حذف</button></div>
+<div class="row" style="margin-top:6px">${qf(qi,'contact','الشخص المسؤول','170px')}${qf(qi,'email','إيميل','220px')}${qf(qi,'phone','تليفون','150px')}${qf(qi,'website','موقع','170px')}</div>
+${q.ocr?'<details style="margin-top:6px"><summary>النص المقروء من الملف (OCR)</summary><pre style="white-space:pre-wrap;direction:ltr;text-align:left;font-size:12px">'+esc(q.ocr)+'</pre></details>':''}${filesHtml('q',qi)}<div class="scroll"><table style="margin-top:8px"><tr><th>م</th><th>المطلوب</th><th>الكمية</th><th>سعر الوحدة</th><th>اللي بيعرضه (موديل/مواصفات)</th><th>مطابقة فنية (يحددها المهندس)</th><th>مطابقة مبدئية آلية</th></tr>
+${r.items.map(it=>{const p=(q.p[it.id]||{});const a=autoMatch(it,p.offered);return `<tr><td>${esc(it.no)}</td><td style="max-width:300px;white-space:pre-wrap">${esc(it.desc)}</td><td>${esc(it.qty)}</td>
+<td style="width:110px" ${p.flag?'class="warn" title="'+esc(p.flag)+'"':''}><input value="${esc(p.unit)}" oninput="setP(${qi},'${it.id}','unit',this.value)"></td>
+<td><textarea oninput="setP(${qi},'${it.id}','offered',this.value)">${esc(p.offered)}</textarea></td>
+<td style="width:130px"><select onchange="setP(${qi},'${it.id}','comp',this.value);render()"><option value="">لم تُراجع</option><option value="ok" ${p.comp==='ok'?'selected':''}>مطابق</option><option value="part" ${p.comp==='part'?'selected':''}>مطابق جزئياً</option><option value="no" ${p.comp==='no'?'selected':''}>غير مطابق</option></select></td>
+<td style="width:140px" class="muted">${a==null?'-':Math.round(a*100)+'% من أكواد/أرقام المطلوب موجودة'}</td></tr>`}).join('')}</table></div></div>`}
+/* ---- customer canonical names + issuing-company chip ---- */
+function custNorm(s){return String(s||'').toLowerCase().replace(/\([^)]*\)/g,' ').replace(/[^a-z0-9\u0600-\u06ff]+/g,' ').replace(/\s+/g,' ').trim()}
+function custBaseKey(n){return custNorm(n)}
+function custCanon(name){const n=String(name||'').trim();if(!n)return '';S.custAlias=S.custAlias||{};const base=custBaseKey(n);
+ if(S.custAlias[base])return S.custAlias[base];
+ const noM=(S.custNoMerge||[]).includes(base);if(noM)return n;
+ for(const c of S.customers||[]){if(custBaseKey(c.name)===base&&(c.aliases||[]).some(a=>a===n))return c.name;
+  if(custBaseKey(c.name)===base&&c.name.length<=n.length&&n.includes('('))return c.name}
+ if(n.includes('('))return n.replace(/\s*\([^)]*\)\s*/g,' ').replace(/\s+/g,' ').trim()||n;
+ return n}
+function custGroups(){const g={};const add=(n)=>{n=String(n||'').trim();if(!n)return;const b=custBaseKey(n);(g[b]=g[b]||{base:b,vars:{}}).vars[n]=(g[b].vars[n]||0)+1};
+ (S.rfqs||[]).forEach(r=>add(r.client));(S.customers||[]).forEach(c=>{add(c.name);(c.aliases||[]).forEach(add)});return Object.values(g)}
+function custSetCanon(base,val){val=String(val||'').trim();S.custAlias=S.custAlias||{};if(val)S.custAlias[base]=val;else delete S.custAlias[base];save();render()}
+function custApply(base){const g=custGroups().find(g=>g.base===base);if(!g)return;const vars=Object.keys(g.vars);const can=(S.custAlias||{})[base]||custCanon(vars[0]);if(!can)return;
+ let n=0;(S.rfqs||[]).forEach(r=>{if(r.client&&custBaseKey(r.client)===base&&r.client!==can){r.client=can;n++}});
+ (S.customers||[]).forEach(c=>{if(custBaseKey(c.name)===base){c.aliases=[...new Set([...(c.aliases||[]),...vars.filter(v=>v!==can)])];c.name=can}});
+ save();render();toast('\u0627\u062a\u0648\u062d\u0651\u062f \u0627\u0644\u0627\u0633\u0645 \u0641\u064a '+n+' \u0637\u0644\u0628');setTimeout(()=>toast(''),1800)}
+function custUnmerge(base){S.custNoMerge=[...new Set([...(S.custNoMerge||[]),base])];delete (S.custAlias||{})[base];save();render()}
+const COCOL={platform:'#1f4e79',nile:'#2e7d32',titan:'#e07b00'};
+function coColor(pid){if(COCOL[pid])return COCOL[pid];let h=0;for(const c of pid)h=(h*31+c.charCodeAt(0))%360;return 'hsl('+h+',45%,32%)'}
+function coChip(pid){const p=(typeof PDEF!=='undefined')&&PDEF[pid];if(!p)return '';return '<span class="cochip" style="background:'+coColor(pid)+'" title="العرض بيصدر باسم '+esc(p.fields&&p.fields.nameEn||p.label)+'">'+esc(p.label)+'</span>'}
+/* customers card */
+function custCard(){const gs=custGroups();if(!gs.length)return '';
+ return `<div class="card"><h2>توحيد أسماء العملاء</h2><div class="note">البرنامج بيعتبر الأسماء اللي بتختلف بس في أقواس أو علامات (زي "ABC Industrial Co" و"ABC Industrial Co ( ABC )") عميل واحد، وبيظهر الاسم الموحّد في لوحة المتابعة. من هنا تقدر تغيّر الاسم الموحّد، تطبّقه على كل الطلبات، أو تفك الدمج لو دول فعلاً عميلين مختلفين.</div><div class="scroll"><table><tr><th>الاسم الموحّد</th><th>الصيغ الموجودة</th><th>عدد الطلبات</th><th></th></tr>${gs.map(g=>{const vars=Object.keys(g.vars);const can=custCanon(vars[0]);const nReq=(S.rfqs||[]).filter(r=>custBaseKey(r.client)===g.base).length;const noM=(S.custNoMerge||[]).includes(g.base);
+ return `<tr><td><input dir="auto" value="${esc(can)}" onchange="custSetCanon('${g.base}',this.value)"></td><td class="muted" style="font-size:12px">${vars.map(esc).join('<br>')}${noM?'<div>الدمج مفكوك</div>':''}</td><td>${nReq}</td><td style="white-space:nowrap"><button class="b s" onclick="custApply('${g.base}')" title="يوحّد الاسم في كل الطلبات وقايمة العملاء">طبّق على الطلبات</button>${!noM&&vars.length>1?` <button class="b o s" onclick="custUnmerge('${g.base}')" title="اعتبر الصيغ دي عملاء مختلفين">فك الدمج</button>`:''}</td></tr>`}).join('')}</table></div></div>`}
+const _tListsX=tLists;tLists=function(){return _tListsX()+custCard()};
+/* dashboard: canonical customer + company chip */
+function tDash(){const rows=S.rfqs.map(r=>{const d=pDate(r.deadline);const dd=d?daysTo(d):null;const closed=qClosed(r);return {r,d,dd,closed}});
+ const open=rows.filter(x=>!x.closed),over=open.filter(x=>x.dd!=null&&x.dd<0),soon=open.filter(x=>x.dd!=null&&x.dd>=0&&x.dd<=3),wait=open.filter(x=>!x.r.quotes.length);
+ const box=(n,t,c)=>`<div style="flex:1;min-width:130px;background:#fff;border-radius:8px;padding:10px;border-top:4px solid ${c};box-shadow:0 1px 3px #0002;text-align:center"><div style="font-size:26px;font-weight:bold;color:${c}">${n}</div><div class="muted">${t}</div></div>`;
+ const dn=x=>isDone(x.r),dvv=x=>{const q=pDate(x.r.delivery);return q?q.getTime():9e15};const sorted=[...rows].sort((S.dashSort||'deliv')==='deliv'?((a,b)=>(dn(a)-dn(b))||(dvv(a)-dvv(b))||((a.dd==null?9999:a.dd)-(b.dd==null?9999:b.dd))):((a,b)=>(a.closed-b.closed)||((a.dd==null?9999:a.dd)-(b.dd==null?9999:b.dd))));
+ return `<style>.cochip{color:#fff;border-radius:10px;padding:1px 8px;font-size:11px;margin-inline-start:6px;white-space:nowrap;vertical-align:middle}body.dark .cochip{color:#fff}</style><div class="row" style="margin-bottom:12px">${box(S.rfqs.length,'كل الطلبات','#1f4e79')}${box(open.length,'مفتوحة','#2e7d32')}${box(over.length,'عدّى ميعادها','#c62828')}${box(soon.length,'ميعادها خلال 3 أيام','#e07b00')}${box(wait.length,'مفيش عروض لسه','#777')}${box(chqDue(),'شيكات مستحقة أو خلال 7 أيام','#6a1b9a')}</div>
+<div class="card"><h2>لوحة المتابعة</h2><div class="row" style="margin-bottom:6px"><label style="width:260px">الترتيب<select onchange="S.dashSort=this.value;save();render()"><option value="deliv" ${(S.dashSort||'deliv')==='deliv'?'selected':''}>حسب ميعاد التسليم (الأقرب أولاً)</option><option value="dead" ${S.dashSort==='dead'?'selected':''}>حسب آخر ميعاد للتقديم</option></select></label></div><div class="scroll"><table><tr><th>رقم الاستفسار</th><th>العميل / الموضوع</th><th>تاريخ الاستلام</th><th>آخر ميعاد للتقديم</th><th>ميعاد التسليم</th><th>المتبقي</th><th>طلبات اتبعتت للموردين</th><th>العروض الواصلة</th><th>البنود</th><th>الحالة</th><th></th></tr>
+${sorted.map(({r,d,dd,closed})=>{const cls=closed?'':dd==null?'':dd<0?'bad':dd<=3?'warn':'';const left=closed?'-':dd==null?(r.deadline?'؟ صيغة التاريخ':'-'):dd<0?'عدّى بـ '+(-dd)+' يوم':dd===0?'النهاردة':dd+' يوم';
+ const nq=r.quotes.length,np=r.quotes.filter(q=>Object.values(q.p||{}).some(p=>p&&p.unit)).length;const sent=+r.sentCount||0;
+ return `<tr class="${cls}"><td><b>${esc(r.no||'بدون رقم')}</b></td><td>${esc(custCanon(r.client)||'')}${coChip(rpid(r))}<div class="muted">${esc(r.subject||'')}</div></td><td>${esc(r.date||'')}</td><td>${esc(r.deadline||'')}</td><td>${esc(r.delivery||'')}${(r.chq||[]).length?'<div class="muted">شيكات: '+r.chq.filter(c=>c.cashed).length+'/'+r.chq.length+' اتصرفت</div>':''}</td><td><b>${left}</b></td>
+ <td style="width:110px"><input type="number" min="0" value="${esc(r.sentCount||'')}" oninput="S.rfqs.find(x=>x.id=='${r.id}').sentCount=this.value;save()" onchange="render()"></td>
+ <td>${nq?`<span class="tag t-ok">وصل ${nq}${sent?' من '+sent:''}</span><div class="muted">${np} مسعّر</div>`:`<span class="tag t-no">لسه</span>${sent?`<div class="muted">مستني ${sent}</div>`:''}`}</td><td>${r.items.length}</td>
+ <td style="width:150px"><select onchange="S.rfqs.find(x=>x.id=='${r.id}').status=this.value;save();render()">${STAT.map(s=>`<option ${rStatus(r)===s?'selected':''}>${s}</option>`).join('')}</select></td>
+ <td><button class="b s" onclick="S.cur='${r.id}';S.tab='rfq';save();render()">فتح</button></td></tr>`}).join('')||'<tr><td colspan="11" class="muted">مفيش طلبات. اضغط "+ طلب تسعير جديد".</td></tr>'}</table></div>
+<p class="muted">الأحمر: عدّى ميعاد التقديم. الأصفر: باقي 3 أيام أو أقل. الشريط الملوّن جمب اسم العميل = الشركة اللي بيصدر بيها العرض (من خانة الشركة في طلب التسعير). توحيد أسماء العملاء من تبويب "العملاء والموردين".</p></div>`}
+/* ---- offers import overhaul: sanitize, dedupe, review ---- */
+function sanQ(t){return String(t||'').split(/\r?\n/).map(l=>{
+ let s=l;
+ s=s.replace(/https?:\/\/\S+|www\.\S+/gi,' ');
+ s=s.replace(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/g,' ');
+ return s}).filter(l=>{
+ const s=l.trim();if(!s)return false;
+ if(/^(to|from|cc|bcc|subject|date|sent|reply|forward|fw|fwd|attachments?)\s*:/i.test(s))return false;
+ if(/^(dear (sir|madam|sirs)|best regards|kind regards|thanks & regards|sincerely)\b/i.test(s)&&s.length<60)return false;
+ if(/mail\.google\.com|gmail|yahoo\.com\/mail|outlook\.live/i.test(s)&&s.length<140)return false;
+ if(/^-+\s*(original|forwarded) message\s*-+$/i.test(s))return false;
+ if(/^(on .{0,40}wrote:|من:|إلى:)/i.test(s))return false;
+ return true}).join('\n')}
+const TERMSLN=/(delivery|deliver|payment|paid|validity|valid|incoterm|terms?|warranty|guarantee|packing|freight|transport|shipping|bank|days?|weeks?|months?|down\s*payment|%|origin|offer\s+no|quotation\s+no|page\s+\d)/i;
+/* parseQuoteText: sanitized text, terms lines excluded from number picking, dedupe offered lines */
+function parseQuoteText(text,items){text=sanQ(text);const L=text.split(/\r?\n/).map(s=>s.replace(/\s+$/,'')).filter(s=>s.trim());const p={};let ok=0;const used=new Set();
+ items.forEach(it=>{let best=null;const q=it.qty;const dsc=it.desc+' '+(it.en||'');
+  for(let i=0;i<L.length;i++){const win=L.slice(i,i+9);let k=-1;for(let j=0;j<win.length;j++){if(!TERMSLN.test(win[j])&&lineNums(win[j]).some(n=>n.v===q)){k=j;break}}
+   const sc=sim(dsc,win.join(' '))+(k>=0?1:0)-(k>=0?0.02*k:0)-(used.has(i)?0.5:0);if(!best||sc>best.sc)best={sc,i,k,win}}
+  if(!best||best.sc<0.45)return;used.add(best.i);const {i,k,win}=best;let unit=null,flag=false;
+  const cleanWin=win.map(l=>TERMSLN.test(l)?l.replace(/\d[\d,]*/g,' '):l);
+  {const wn=cleanWin.slice(0,Math.max(k,0)+4).flatMap(lineNums).filter(n=>n.v>0&&/[.,]/.test(n.s));let hit=null;
+   for(const u of wn){if(u.v===q)continue;if(wn.some(n=>n!==u&&Math.abs(u.v*q-n.v)<=Math.max(0.01*n.v,0.011))){hit=u;break}}
+   if(hit){unit=hit.v}}
+  if(unit==null&&k>=0){const ns=lineNums(cleanWin[k]);const qi=ns.findIndex(n=>n.v===q);const after=ns.slice(qi+1).filter(n=>n.v>0);
+   if(after.length>=2){unit=after[0].v}
+   else if(after.length===1){unit=after[0].v;flag=true}}
+  if(unit==null){const dtok=new Set(((it.desc+' '+(it.en||'')).match(/\d[\d,.]*/g)||[]).map(x=>String(parseNum(x))));const ns=cleanWin.flatMap(lineNums).filter(n=>!dtok.has(String(n.v))&&n.v!==q&&n.v>0&&/[.,]/.test(n.s));if(ns.length){unit=ns[0].v;flag=true}}
+  if(unit==null)return;
+  if(suspPrice(unit))return;
+  let end=Math.max(k,0)+1;while(end<win.length&&!/^\s*\d{1,2}\s{2,}\S/.test(win[end])&&!/^\s*(total|razem|tot\.)/i.test(win[end]))end++;
+  p[it.id]={unit:String(unit),offered:win.slice(0,end).map(s=>s.trim().replace(/\s{2,}/g,' ')).join(' / ')};if(flag)p[it.id].flag='السعر مش متأكد منه - راجعه على الأصل';ok++});
+ /* never copy one line/price to many items: keep only the best-desc match */
+ const byOff={};Object.keys(p).forEach(id=>{const o=(p[id].offered||'').replace(/\s+/g,' ').trim();if(o.length<12)return;const u=p[id].unit;const key=o+'|'+u;(byOff[key]=byOff[key]||[]).push(id)});
+ Object.values(byOff).forEach(ids=>{if(ids.length<2)return;let keep=ids[0],bs=-1;ids.forEach(id=>{const it=items.find(x=>x.id===id);const s=it?sim(it.desc+' '+(it.en||''),p[id].offered):0;if(s>bs){bs=s;keep=id}});
+  ids.forEach(id=>{if(id!==keep){delete p[id].unit;p[id].flag='نفس سطر العرض اتطابق على أكتر من بند - السعر اتشال من هنا، راجع الأصل وحدد البند الصح';}})});
+ return {p,ok}}
+/* supplier name: never from email headers/junk */
+const _qmZ=quoteMeta;quoteMeta=function(t){const m=_qmZ(sanQ(t));if(m.supplier&&(/^[\s:]*\b(to|from|cc|subject|date|sent)\b/i.test(m.supplier)||m.supplier.includes('@')||/https?:/i.test(m.supplier)||m.supplier.length<3))delete m.supplier;return m};
+/* item desc cleanup: strip trailing line-number digits glued to the description */
+const _cleanX=cleanItems;cleanItems=function(r){const n=_cleanX(r);(r.items||[]).forEach(it=>{if(!it.desc)return;const d=it.desc.replace(/[\s\u0600-\u06ff]*([0-9\u0660-\u0669]{1,3})\s*$/,(m,g)=>{const v=String(parseInt(A2L(g),10));return v===String(it.no)?'':m});if(d!==it.desc)it.desc=d.replace(/\s+$/,'')});return n};
+/* review screen state */
+let REV=null;
+function revWarn(q,r){const toksIt=new Set();r.items.forEach(it=>toks(it.desc+' '+(it.en||'')).forEach(t=>toksIt.add(t)));
+ const offT=new Set();Object.values(q.p).forEach(pp=>toks(pp.offered||'').forEach(t=>offT.add(t)));
+ if(!offT.size)return '';let hit=0;offT.forEach(t=>{if(toksIt.has(t))hit++});
+ return hit===0?'تحذير: مفيش أي موديل أو رقم من العرض ده بيطابق بنود الطلب الحالي - ممكن العرض يكون تابع لطلب تاني. راجع قبل القبول.':''}
+function revCard(r){const q=REV.q;const rows=Object.keys(q.p).map(id=>{const it=r.items.find(x=>x.id===id);const pp=q.p[id];return {id,no:it?it.no:'?',desc:it?(it.desc||'').split('\n')[0]:'',unit:pp.unit||'',offered:pp.offered||'',flag:pp.flag||''}});
+ const opts=(sel)=>`<option value="">— احذف السطر —</option>`+r.items.map(it=>`<option value="${it.id}" ${it.id===sel?'selected':''}>بند ${esc(it.no)}: ${esc((it.desc||'').split('\n')[0].slice(0,40))}</option>`).join('');
+ return `<div class="card" style="border:2px solid #e07b00"><h2>مراجعة قراءة العرض قبل الحفظ (${esc(REV.how==='AI'?'الذكاء الاصطناعي':'قراءة أوفلاين')})</h2>
+ <div class="note">القراءة الآلية بتغلط. راجع كل سطر: البند المقترح والسعر، وصحّح أو احذف، وبعدين اضغط "اعتمد". مفيش أي حاجة بتتحفظ قبل الاعتماد.</div>
+ ${REV.warn?`<div style="background:#c62828;color:#fff;padding:8px 10px;border-radius:8px;margin-bottom:8px"><b>${esc(REV.warn)}</b></div>`:''}
+ <div class="row"><label style="width:220px">المورد<input dir="auto" id="revsup" value="${esc(q.supplier)}"></label><label style="width:90px">العملة<input id="revcur" value="${esc(q.currency)}"></label><label style="width:110px">Incoterm<input id="revinc" value="${esc(q.incoterm||'')}"></label><label style="width:110px">التسليم<input id="revlead" value="${esc(q.lead||'')}"></label><label style="width:110px">الصلاحية<input id="revval" value="${esc(q.validity||'')}"></label><label style="width:110px">الضمان<input id="revwar" value="${esc(q.warranty||'')}"></label></div>
+ <div class="scroll"><table><tr><th>يقبل على بند</th><th>سعر الوحدة</th><th>اللي اتقري من العرض</th><th>ملاحظة</th></tr>
+ ${rows.map((rw,i)=>`<tr${rw.flag?' class="warn"':''}><td><select id="rev_it_${i}">${opts(rw.id)}</select></td><td style="width:100px"><input id="rev_pr_${i}" value="${esc(rw.unit)}"></td><td style="font-size:12px;max-width:320px">${esc(rw.offered.slice(0,180))}</td><td class="muted" style="font-size:11px">${esc(rw.flag)}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">مفيش سطور اتقرت.</td></tr>'}</table></div>
+ <div class="row" style="margin-top:8px"><button class="b g" onclick="revOk(${rows.length})">اعتمد وأضف العرض</button><button class="b r" onclick="REV=null;render()">إلغي العرض ده</button></div></div>`}
+async function revOk(n){const r=R();const q=REV.q;const f=REV.file;
+ q.supplier=document.getElementById('revsup').value.trim()||q.supplier;q.currency=(document.getElementById('revcur').value.trim()||'EUR').toUpperCase();q.incoterm=document.getElementById('revinc').value.trim();q.lead=document.getElementById('revlead').value.trim();q.validity=document.getElementById('revval').value.trim();q.warranty=document.getElementById('revwar').value.trim();
+ const np={};let ok=0;
+ for(let i=0;i<n;i++){const it=document.getElementById('rev_it_'+i).value;const pr=document.getElementById('rev_pr_'+i).value.trim();if(!it)continue;const src=Object.values(REV.q.p)[i];
+  np[it]=np[it]||{};np[it].unit=pr;if(src&&src.offered)np[it].offered=src.offered;if(src&&src.flag)np[it].flag=src.flag;ok++}
+ q.p=np;REV=null;
+ try{if(f)await attach(q,f)}catch(e){}
+ r.quotes.push(q);cleanItems(r);save();render();
+ alert('اتحفظ العرض بـ '+ok+' سعر بعد مراجعتك. راجع الخانات الصفرا والعملة.'+(fxMissing(r).length?'\n\nمهم: لازم تدخل سعر الصرف لـ '+fxMissing(r).join(', '):''))}
+/* upQuote: parse, then review before saving */
+async function upQuote(inp){const fs=[...inp.files];inp.value='';for(const f of fs){try{
+ if(isImgPdf(f)){const rf=R();let q=null,how='';const layer=sanQ(isPdf(f)?await pdfLayer(f):'');
+  if(llmOn()){try{toast('الذكاء الاصطناعي بيقرا '+f.name+' ... استنى');const j=await llmReadQuote(f,rf,layer);const qm=layer?quoteMeta(layer):{};const off=layer?parseQuoteText(layer,rf.items):{p:{}};const cc=layer?extractContacts(layer):{};const fname=f.name.replace(/\.[^.]+$/,'');
+   const sup=(j.supplier&&String(j.supplier).trim().toLowerCase()!==fname.toLowerCase()&&!/@|https?:|^\s*:?(to|from|subject)\b/i.test(String(j.supplier)))?j.supplier:(qm.supplier||fname);
+   q={id:uid(),supplier:sup,country:j.country||qm.country||'',currency:(j.currency||qm.currency||'EUR').toUpperCase(),incoterm:j.incoterm||qm.incoterm||'',lead:j.lead_time||qm.lead||'',validity:fixValidity(j.validity||qm.validity||''),payment:j.payment_terms||qm.payment||'',notes:j.notes||qm.notes||'',warranty:qm.warranty||'',contact:j.contact_person||cc.contact||'',email:j.email||cc.email||'',phone:j.phone||cc.phone||'',website:j.website||cc.website||'',p:{}};let ok=0;
+   (j.items||[]).forEach(x=>{let it=rf.items.find(i=>x.rfq_item_no!=null&&String(i.no)===String(x.rfq_item_no));if(!it){let bs=0;rf.items.forEach(i=>{const s=sim(i.desc+' '+(i.en||''),x.description||'');if(s>bs){bs=s;it=i}});if(bs<0.35)it=null}
+    if(it&&(typeof x.unit_price==='number'||typeof x.line_total==='number')){const o=off.p&&off.p[it.id]?parseFloat(off.p[it.id].unit):NaN;const rc=reconcile(x.unit_price,isNaN(o)?null:o,x.line_total,x.qty||it.qty);if(suspPrice(+rc.u))return;q.p[it.id]={unit:String(+(+rc.u).toFixed(4)),offered:((x.description||'')+(x.offered_model&&!(x.description||'').includes(x.offered_model)?' '+x.offered_model:'')).trim().slice(0,300)};if(rc.flag)q.p[it.id].flag=rc.flag;ok++}});
+   /* dedupe: one price never copied to many items */
+   const cnt={};Object.keys(q.p).forEach(id=>{const u=q.p[id].unit;cnt[u]=(cnt[u]||[]).concat(id)});
+   Object.values(cnt).forEach(ids=>{if(ids.length>2)ids.forEach(id=>{q.p[id].flag=(q.p[id].flag?q.p[id].flag+' | ':'')+'نفس السعر اتكرر على أكتر من بند - راجع البند الصح'});});how='AI'}catch(e){toast('الذكاء الاصطناعي فشل ('+e.message+') - بجرب OCR أوفلاين',true);await new Promise(r=>setTimeout(r,1800));q=null}}
+  if(!q){const t=layer||sanQ(await fileText(f));const pr=parseQuoteText(t,rf.items);q={id:uid(),supplier:f.name.replace(/\.[^.]+$/,''),country:'',currency:'EUR',incoterm:'',lead:'',validity:'',payment:'',notes:'',p:pr.p,ocr:t};const cm=t.match(/\b(EUR|USD|EGP|GBP|CNY|INR|TRY|AED|SAR)\b/i);if(cm)q.currency=cm[1].toUpperCase();applyQM(q,t);q.validity=fixValidity(q.validity);Object.assign(q,extractContacts(t));how='OCR'}
+  toast('');REV={q,file:f,how,warn:revWarn(q,rf)};S.tab='quotes';render()}
+ else{const n=R().quotes.length;await upQuoteDoc({files:[f]});const q=R().quotes[n];if(q){await attach(q,f);save();render()}}
+ }catch(e){toast('');showErr(e)}}}
+const _tQuotesX=tQuotes;tQuotes=function(){const r=R();return (REV?revCard(r):'')+_tQuotesX()};
+/* item EN alias input in the RFQ items table */
+const _tRfqY=tRfq;tRfq=function(){let h=_tRfqY();
+ h=h.replace(/(<textarea oninput="R\(\)\.items\[(\d+)\]\.desc=this\.value;save\(\)">[^<]*<\/textarea><\/td>)/g,(m,g1,idx)=>g1+'<td style="width:150px"><input dir="ltr" placeholder="EN name / aliases" value="'+esc((R().items[+idx]||{}).en||'')+'" oninput="R().items['+idx+'].en=this.value;save()" title="اسم أو كلمات إنجليزية للبند - بتساعد مطابقة عروض الموردين الإنجليزية"></td>');
+ return h}
 
 /* ---------- supplier finder ---------- */
 function mountSF(){const h=document.getElementById('sfhost');if(h.firstChild)return;const fr=document.createElement('iframe');fr.srcdoc=document.getElementById('sf-src').textContent.replace(/<\\\/script/g,'</script');h.appendChild(fr)}
