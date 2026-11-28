@@ -1495,7 +1495,7 @@ function arPost(r,xml){return rLang(r)==='ar'?arDoc(xml,!!r.arDigits):xml}
 function langBox(){const r=R();return `<label style="width:150px">لغة العرض<select onchange="R().lang=this.value;save();render()"><option value="en" ${rLang(r)==='en'?'selected':''}>English</option><option value="ar" ${rLang(r)==='ar'?'selected':''}>عربي</option></select></label>${rLang(r)==='ar'?`<label style="flex-direction:row;align-items:center;gap:6px;width:auto"><input type="checkbox" style="width:auto" ${r.arDigits?'checked':''} onchange="R().arDigits=this.checked;save();render()"> أرقام عربية (٠١٢)</label><div class="note" style="width:100%;font-size:12px">النسخة العربية بتتولد من قالب الشركة الإنجليزي: العناوين الثابتة والشروط الافتراضية المعروفة بتتترجم، والتوقيع والاسم بيتاخدوا من حقول الشركة العربية (قوالب الشركات). أي شرط بتكتبه بإيدك بعربي بيطلع زي ما هو. الهيدر والفوتر والختم صور القالب زي ما هي. راجع الملف في Word قبل الإرسال.</div>`:''}`}
 
 /* ---- in-app update notice (hosted only): compares BUILD_ID with version.json on the site ---- */
-const BUILD_ID='202611261632';
+const BUILD_ID='202611281321';
 let UPD={shown:false,v:null};
 async function updCheck(){if(UPD.shown||BUILD_ID.indexOf('@@')===0||!synHosted())return;
  try{const r=await fetch('version.json?_='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();if(!j||!j.v||String(j.v)===BUILD_ID)return;UPD.shown=true;UPD.v=j.v;updShow(j)}catch(e){}}
@@ -1576,6 +1576,7 @@ function sugClear(){const r=R();if(!r)return;r.sugSel={};save();render()}
 function sugSelected(r){const m=sugSelMap(r);const all=sugGet(r);const pool=[];['prev','prevOther','local','db'].forEach(g=>all[g].forEach(x=>pool.push(x.email)));return pool.filter(e=>m[e.toLowerCase()])}
 function sugCount(){const r=R();const el=document.getElementById('sugcnt');if(el&&r)el.textContent=sugSelected(r).length}
 function sugCopy(){const r=R();if(!r)return;const sel=sugSelected(r);if(!sel.length)return alert('علّم إيميلات الأول.');navigator.clipboard&&navigator.clipboard.writeText(sel.join(', '));toast('اتنسخ '+sel.length+' إيميل (حطهم في خانة BCC)');setTimeout(()=>toast(''),2500)}
+function sugCopyLines(){const r=R();if(!r)return;const sel=sugSelected(r);if(!sel.length)return alert('علّم إيميلات الأول.');navigator.clipboard&&navigator.clipboard.writeText(sel.join('\r\n'));toast('اتنسخ '+sel.length+' إيميل، كل واحد في سطر لوحده');setTimeout(()=>toast(''),2500)}
 function sugSent(){const r=R();if(!r)return;const n=sugSelected(r).length;if(!n)return alert('علّم إيميلات الأول.');r.sentCount=(+r.sentCount||0)+n;save();render();toast('اتسجل إنك بعت لـ '+n);setTimeout(()=>toast(''),2000)}
 function sugAddMan(){const r=R();if(!r)return;const i=document.getElementById('sugman');const e=(i.value||'').trim();if(!SUGMAIL(e))return alert('اكتب إيميل صحيح.');r.sugExtra=r.sugExtra||[];if(!r.sugExtra.some(x=>x.email.toLowerCase()===e.toLowerCase()))r.sugExtra.push({email:e,note:'إضافة يدوية'});sugSelMap(r)[e.toLowerCase()]=1;i.value='';save();render()}
 function sugMountSF(){if(SUGSF.tried)return;SUGSF.tried=true;try{const h=document.getElementById('sfhost');if(!h||h.firstChild)return;const fr=document.createElement('iframe');fr.onload=()=>{setTimeout(()=>{SUGSF.rows=(supRows()||[]).length;if(S.tab==='rfq')render()},600)};fr.srcdoc=document.getElementById('sf-src').textContent.replace(/<\\\/script/g,'</script');h.appendChild(fr)}catch(e){}}
@@ -1590,7 +1591,7 @@ function sugCard(){const r=R();if(!r)return '';if(!(r.items||[]).length&&! (r.su
  return `<div class="card"><h2>إيميلات مقترحة للإرسال (BCC)</h2>
 <p class="muted">اقتراحات تلقائية من 3 مصادر: الموردين اللي بعتوا عروض قبل كده (مع مطابقة بنود الطلب الحالي ببنود عروضهم القديمة)، الموردين المحليين، وقاعدة الإيميلات الكبيرة. المطابقة بالكلمات والأكواد فقط: راجع قبل الإرسال. البرنامج مش بيبعت أي إيميل بنفسه، بس بيجهزلك القايمة.</p>
 ${sfNote}
-<div class="row" style="align-items:center;gap:10px"><span>المحدد: <b id="sugcnt">${n}</b></span><button class="b g" onclick="sugCopy()">نسخ المحدد (للصق في BCC)</button><button class="b o" onclick="sugSent()">اتبعت للمحددين</button><button class="b s o" onclick="sugClear()">إلغاء كل التحديد</button></div>
+<div class="row" style="align-items:center;gap:10px"><span>المحدد: <b id="sugcnt">${n}</b></span><button class="b g" onclick="sugCopy()">نسخ المحدد (للصق في BCC)</button><button class="b o" onclick="sugCopyLines()">نسخ كل إيميل في سطر (للشيت)</button><button class="b o" onclick="sugSent()">اتبعت للمحددين</button><button class="b s o" onclick="sugClear()">إلغاء كل التحديد</button></div>
 <div class="row" style="margin-top:4px"><label style="width:280px">إضافة إيميل يدوي<input id="sugman" dir="ltr" placeholder="name@company.com" onkeydown="if(event.key==='Enter'){event.preventDefault();sugAddMan()}"></label><button class="b s" onclick="sugAddMan()">إضافة وتحديد</button></div>
 ${sugGroupHtml(r,'prev','موردين سابقين مطابقين لبنود الطلب',g.prev,true)||''}
 ${sugGroupHtml(r,'local','موردين محليين مطابقين',g.local,true)||''}
