@@ -1495,7 +1495,7 @@ function arPost(r,xml){return rLang(r)==='ar'?arDoc(xml,!!r.arDigits):xml}
 function langBox(){const r=R();return `<label style="width:150px">لغة العرض<select onchange="R().lang=this.value;save();render()"><option value="en" ${rLang(r)==='en'?'selected':''}>English</option><option value="ar" ${rLang(r)==='ar'?'selected':''}>عربي</option></select></label>${rLang(r)==='ar'?`<label style="flex-direction:row;align-items:center;gap:6px;width:auto"><input type="checkbox" style="width:auto" ${r.arDigits?'checked':''} onchange="R().arDigits=this.checked;save();render()"> أرقام عربية (٠١٢)</label><div class="note" style="width:100%;font-size:12px">النسخة العربية بتتولد من قالب الشركة الإنجليزي: العناوين الثابتة والشروط الافتراضية المعروفة بتتترجم، والتوقيع والاسم بيتاخدوا من حقول الشركة العربية (قوالب الشركات). أي شرط بتكتبه بإيدك بعربي بيطلع زي ما هو. الهيدر والفوتر والختم صور القالب زي ما هي. راجع الملف في Word قبل الإرسال.</div>`:''}`}
 
 /* ---- in-app update notice (hosted only): compares BUILD_ID with version.json on the site ---- */
-const BUILD_ID='202611281321';
+const BUILD_ID='202611281429';
 let UPD={shown:false,v:null};
 async function updCheck(){if(UPD.shown||BUILD_ID.indexOf('@@')===0||!synHosted())return;
  try{const r=await fetch('version.json?_='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();if(!j||!j.v||String(j.v)===BUILD_ID)return;UPD.shown=true;UPD.v=j.v;updShow(j)}catch(e){}}
@@ -1564,7 +1564,7 @@ function sugCompute(r){
  if(rows.length){const cand=[];rows.forEach(w=>{const e=String(w.email||'').trim();if(!SUGMAIL(e)||seen[e.toLowerCase()]||SUGBAD(w.status))return;
    const {sc,hit}=sugScore((w.brand||'')+' '+(w.product||'')+' '+(w.type||'')+' '+(w.company||''),codes,words);if(sc<=0)return;
    cand.push({email:e,name:w.company||w.brand||e,country:w.country||'',sc,why:'من القاعدة'+(w.brand?' ('+w.brand+')':'')+(hit.length?' - مطابق: '+hit.join(', '):'')})});
-  cand.sort((a,b)=>b.sc-a.sc);cand.slice(0,25).forEach(x=>{if(!seen[x.email.toLowerCase()]){seen[x.email.toLowerCase()]=1;g.db.push(x)}})}
+  cand.sort((a,b)=>b.sc-a.sc);cand.forEach(x=>{if(!seen[x.email.toLowerCase()]){seen[x.email.toLowerCase()]=1;g.db.push(x)}})}
  // manual additions
  (r.sugExtra||[]).forEach(x=>{const e=String(x.email||'').trim();if(SUGMAIL(e)&&!seen[e.toLowerCase()]){seen[e.toLowerCase()]=1;g.prev.unshift({email:e,name:x.note||'إضافة يدوية',country:'',sc:999,why:'أضفته بنفسك'})}});
  return g}
@@ -1580,8 +1580,13 @@ function sugCopyLines(){const r=R();if(!r)return;const sel=sugSelected(r);if(!se
 function sugSent(){const r=R();if(!r)return;const n=sugSelected(r).length;if(!n)return alert('علّم إيميلات الأول.');r.sentCount=(+r.sentCount||0)+n;save();render();toast('اتسجل إنك بعت لـ '+n);setTimeout(()=>toast(''),2000)}
 function sugAddMan(){const r=R();if(!r)return;const i=document.getElementById('sugman');const e=(i.value||'').trim();if(!SUGMAIL(e))return alert('اكتب إيميل صحيح.');r.sugExtra=r.sugExtra||[];if(!r.sugExtra.some(x=>x.email.toLowerCase()===e.toLowerCase()))r.sugExtra.push({email:e,note:'إضافة يدوية'});sugSelMap(r)[e.toLowerCase()]=1;i.value='';save();render()}
 function sugMountSF(){if(SUGSF.tried)return;SUGSF.tried=true;try{const h=document.getElementById('sfhost');if(!h||h.firstChild)return;const fr=document.createElement('iframe');fr.onload=()=>{setTimeout(()=>{SUGSF.rows=(supRows()||[]).length;if(S.tab==='rfq')render()},600)};fr.srcdoc=document.getElementById('sf-src').textContent.replace(/<\\\/script/g,'</script');h.appendChild(fr)}catch(e){}}
-function sugGroupHtml(r,gid,title,rows,open){if(!rows.length)return '';const m=sugSelMap(r);const emails=rows.map(x=>x.email);
- const body=rows.map(x=>`<label style="flex-direction:row;align-items:center;gap:8px;padding:3px 0;border-bottom:1px dashed var(--bd,#334)"><input type="checkbox" style="width:auto" ${m[x.email.toLowerCase()]?'checked':''} onchange="sugToggle('${esc(x.email)}',this.checked)"><span dir="ltr" style="font-weight:600">${esc(x.email)}</span><span class="muted" style="font-size:12px">${esc(x.name)}${x.country?' - '+esc(x.country):''} · ${esc(x.why)}</span></label>`).join('');
+const SUGSHOW={};
+function sugShowTog(gid){SUGSHOW[gid]=!SUGSHOW[gid];render()}
+function sugGroupHtml(r,gid,title,rows,open){if(!rows.length)return '';const m=sugSelMap(r);
+ const CAP=50;const shown=SUGSHOW[gid]?rows:rows.slice(0,CAP);
+ let body=shown.map(x=>`<label style="flex-direction:row;align-items:center;gap:8px;padding:3px 0;border-bottom:1px dashed var(--bd,#334)"><input type="checkbox" style="width:auto" ${m[x.email.toLowerCase()]?'checked':''} onchange="sugToggle('${esc(x.email)}',this.checked)"><span dir="ltr" style="font-weight:600">${esc(x.email)}</span><span class="muted" style="font-size:12px">${esc(x.name)}${x.country?' - '+esc(x.country):''} · ${esc(x.why)}</span></label>`).join('');
+ if(rows.length>CAP)body+=`<div class="row" style="margin:4px 0"><button class="b s o" onclick="sugShowTog('${gid}')">${SUGSHOW[gid]?'عرض أول '+CAP+' بس':'عرض كل الـ '+rows.length}</button></div>`;
+ if(rows.length>15)body=`<div style="max-height:320px;overflow:auto">${body}</div>`;
  const inner=`<div class="row" style="margin:6px 0 2px"><b>${title} (${rows.length})</b><button class="b s o" onclick="sugGroupG('${gid}',true)">تحديد الكل</button><button class="b s o" onclick="sugGroupG('${gid}',false)">إلغاء</button></div>${body}`;
  return open?`<div style="margin-top:8px">${inner}</div>`:`<details style="margin-top:8px"><summary>${title} (${rows.length})</summary>${inner}</details>`}
 function sugCard(){const r=R();if(!r)return '';if(!(r.items||[]).length&&! (r.sugExtra||[]).length)return '';
@@ -1595,7 +1600,7 @@ ${sfNote}
 <div class="row" style="margin-top:4px"><label style="width:280px">إضافة إيميل يدوي<input id="sugman" dir="ltr" placeholder="name@company.com" onkeydown="if(event.key==='Enter'){event.preventDefault();sugAddMan()}"></label><button class="b s" onclick="sugAddMan()">إضافة وتحديد</button></div>
 ${sugGroupHtml(r,'prev','موردين سابقين مطابقين لبنود الطلب',g.prev,true)||''}
 ${sugGroupHtml(r,'local','موردين محليين مطابقين',g.local,true)||''}
-${sugGroupHtml(r,'db','من قاعدة الموردين الكبيرة (أفضل 25)',g.db,false)||''}
+${sugGroupHtml(r,'db','من قاعدة الموردين الكبيرة (كل المطابق)',g.db,false)||''}
 ${sugGroupHtml(r,'prevOther','موردين سابقين بدون مطابقة للبنود',g.prevOther,false)||''}
 ${!g.prev.length&&!g.local.length&&!g.db.length&&!g.prevOther.length?'<p class="muted">مفيش اقتراحات لسه: ضيف بنود للطلب، ولما تدخل عروض موردين بإيميلاتهم هتظهر هنا تلقائياً في الطلبات الجاية.</p>':''}
 </div>`}
