@@ -1203,7 +1203,8 @@ function synCard(){const m=synMeta();return `<div class="card"><h2>مزامنة 
 <button class="b" onclick="synSync()">مزامنة الآن</button><button class="b o" onclick="synPull(false)">نزّل من درايف</button><button class="b o" onclick="synPush(false)">ارفع لدرايف</button><button class="b o" onclick="synSignOut()">خروج من جوجل</button></div>
 <p id="synst" class="muted">${esc(SYN.msg||'')}</p>
 <p class="muted">${synHosted()?'تمام: البرنامج مفتوح من لينك https.':'<b style="color:#c62828">البرنامج مفتوح من ملف على الجهاز.</b> تسجيل دخول جوجل بيشتغل بس من لينك الموقع (Netlify). شوف الخطوات اللي اتبعتلك.'} آخر مزامنة: ${m.last?new Date(m.last).toLocaleString('ar-EG'):'لسه'} ${m.dirty?'| فيه تعديلات متترفعتش':''}</p>
-<p class="muted">لو اتعدل من جهازين في نفس الوقت، البرنامج بيسألك تحتفظ بأنهي نسخة ومبيمسحش حاجة لوحده. اعمل نسخة احتياطية بشكل دوري برضه.</p></div>`}
+<p class="muted">لو اتعدل من جهازين في نفس الوقت، البرنامج بيسألك تحتفظ بأنهي نسخة ومبيمسحش حاجة لوحده. اعمل نسخة احتياطية بشكل دوري برضه.</p>
+<div class="row" style="margin-top:8px;border-top:1px dashed #ccc;padding-top:8px"><span>ملفات الشركة الخاصة (دليل الموردين وقوالب الشركات):</span><button class="b o" onclick="document.getElementById('privupd').click()">تحديث private_pack.json</button><input type="file" id="privupd" accept=".json" style="display:none" onchange="privUpdate(this)"></div></div>`}
 /* lock-screen link: new device pulls the encrypted data from Drive before login */
 function syncLockLink(inner){if(inner.indexOf('id="lu"')<0)return '';return `<div style="margin-top:14px;border-top:1px solid #ddd;padding-top:10px"><a href="#" onclick="synNewDevice();return false" style="font-size:13px">☁ جهاز جديد؟ سجّل دخول جوجل وهات بياناتي من درايف</a><div id="synlk" class="muted" style="font-size:12px"></div></div>`}
 async function synNewDevice(cidArg){const lk=t=>{const e=document.getElementById('synlk');if(e)e.textContent=t};try{if(cidArg&&String(cidArg).trim())synSetCid(cidArg);let m=synMeta();if(!m.cid){const c=prompt('الصق الـClient ID (من إعداد جوجل):');if(!c)return;synSetCid(c)}
@@ -1214,7 +1215,11 @@ async function synNewDevice(cidArg){const lk=t=>{const e=document.getElementById
    The user imports private_pack.json once; it is stored ENCRYPTED in IndexedDB (and synced to Drive like any attachment). ===== */
 let _privDone=false;
 function privApply(j){document.getElementById('prof-docs').textContent=j.prof;document.getElementById('sf-src').textContent=j.sf;PRDOCS=JSON.parse(j.prof);
- if(j.pdef)PDEF=JSON.parse(j.pdef);if(j.pv)PRIV=j.pv;if(j.signer){DEF_TERMS.signer=j.signer;if(typeof S!=='undefined'&&S&&S.terms&&!S.terms.signer)S.terms.signer=j.signer}_privDone=true}
+ if(j.pdef)PDEF=JSON.parse(j.pdef);if(j.pv)PRIV=j.pv;if(j.signer){DEF_TERMS.signer=j.signer;if(typeof S!=='undefined'&&S&&S.terms&&!S.terms.signer)S.terms.signer=j.signer}_privDone=true;
+ if(typeof PACK_V!=='undefined'&&PACK_V.indexOf('@@')!==0&&String(j.packV||'')!==PACK_V)setTimeout(()=>{toast('ملفات الشركة الخاصة أقدم من نسخة البرنامج: حدّث private_pack.json من الإعدادات');setTimeout(()=>toast(''),5000)},2000)}
+async function privUpdate(i){const f=i.files[0];if(!f)return;i.value='';try{const t=await f.text();const j=JSON.parse(t);if(!j||j.v!==2||!j.prof||!j.sf||!j.pdef)throw new Error('الملف ده مش private_pack.json الصح (لازم v2)');await putFile('private_pack',new Blob([t],{type:'application/json'}));privApply(j);
+ try{const h=document.getElementById('sfhost');if(h)h.innerHTML='';if(typeof SUGSF!=='undefined'){SUGSF.tried=false;SUGSF.rows=0}if(typeof SUGC!=='undefined')SUGC={key:null,data:null};mountSF()}catch(e){}
+ render();toast('اتحدّثت ملفات الشركة الخاصة ✓');setTimeout(()=>toast(''),2500)}catch(e){alert(e.message||String(e))}}
 async function privGate(){const e=document.getElementById('prof-docs');if(!e||!e.dataset.private||_privDone)return;
  for(;;){let b=null;try{b=await getFile('private_pack')}catch(x){}
   if(b){try{privApply(JSON.parse(await b.text()));return}catch(x){}}
@@ -1495,7 +1500,8 @@ function arPost(r,xml){return rLang(r)==='ar'?arDoc(xml,!!r.arDigits):xml}
 function langBox(){const r=R();return `<label style="width:150px">لغة العرض<select onchange="R().lang=this.value;save();render()"><option value="en" ${rLang(r)==='en'?'selected':''}>English</option><option value="ar" ${rLang(r)==='ar'?'selected':''}>عربي</option></select></label>${rLang(r)==='ar'?`<label style="flex-direction:row;align-items:center;gap:6px;width:auto"><input type="checkbox" style="width:auto" ${r.arDigits?'checked':''} onchange="R().arDigits=this.checked;save();render()"> أرقام عربية (٠١٢)</label><div class="note" style="width:100%;font-size:12px">النسخة العربية بتتولد من قالب الشركة الإنجليزي: العناوين الثابتة والشروط الافتراضية المعروفة بتتترجم، والتوقيع والاسم بيتاخدوا من حقول الشركة العربية (قوالب الشركات). أي شرط بتكتبه بإيدك بعربي بيطلع زي ما هو. الهيدر والفوتر والختم صور القالب زي ما هي. راجع الملف في Word قبل الإرسال.</div>`:''}`}
 
 /* ---- in-app update notice (hosted only): compares BUILD_ID with version.json on the site ---- */
-const BUILD_ID='202611281429';
+const BUILD_ID='202611281450';
+const PACK_V='4bac8e28ea'; /* content hash of the private pack that matches this build; build_host fills both */
 let UPD={shown:false,v:null};
 async function updCheck(){if(UPD.shown||BUILD_ID.indexOf('@@')===0||!synHosted())return;
  try{const r=await fetch('version.json?_='+Date.now(),{cache:'no-store'});if(!r.ok)return;const j=await r.json();if(!j||!j.v||String(j.v)===BUILD_ID)return;UPD.shown=true;UPD.v=j.v;updShow(j)}catch(e){}}
